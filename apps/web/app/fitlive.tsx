@@ -2,7 +2,8 @@
 import { BodyTrend } from "@/components/fitlive/body-trend";
 import type { FoodCandidate } from "@/lib/food-data";
 import { GroceryReview } from "@/components/fitlive/grocery-review";
-import { WeeklyReview, NaturalMeal } from "@/components/fitlive/review";
+import { PhotoMeal } from "@/components/fitlive/photo-meal";
+import { WeeklyReview } from "@/components/fitlive/review";
 import { AccountSession } from "@/components/fitlive/account-session";
 import Link from "next/link";
 import {
@@ -886,7 +887,7 @@ export default function Home({ ownerId, authMode }: { ownerId: string; authMode:
                 )}
               </TabsContent>
               <TabsContent value="Eat">
-                <NaturalMeal state={s} busy={busy} act={act} />
+                <PhotoMeal state={s} busy={busy} act={act} />
                 <div className="macro-grid">
                   {[
                     ["Protein", t.protein, s.profile.protein, "g"],

@@ -15,3 +15,11 @@ Private setup: add HF_TOKEN to apps/web/.env.local, then set AI_PROVIDER=hugging
 Remaining release gates include live hosted-coach evaluation, genuinely on-device inference for opt-out users, full specification reconciliation, physical native integrations, deployment/security/restore checks and user acceptance testing. No claim of market fit is made.
 
 Sources: https://huggingface.co/docs/inference-providers/en/pricing and https://huggingface.co/docs/inference-providers/en/hub-api
+
+## Photo meal journal
+
+Eat supports mobile camera capture, upload and description-only analysis. Photos are resized/re-encoded to JPEG in the browser, removing metadata. FitLive does not store photos. Each analysis requires consent to send photo/description to Hugging Face and its provider; no other account health context is sent. Limits: five analyses/minute and thirty/day/account.
+
+Qwen3-VL generates validated nutrition estimates. Review portions, correct the draft in plain English, remove items and save one atomic batch. Estimates remain labeled in food provenance. Photos cannot establish exact portions or allergy safety. Manual entry remains available. Drafts survive request/save failures in the open page, not reloads.
+
+Live description fixture (rice, tomato dal, paneer) returned three items in 19.9 seconds and preserved the two specified 100 g portions. Camera hardware and actual-photo recognition accuracy are not verified. Automated tests cover consent, image payload, correction context, invalid responses and atomic estimated-meal saving.
