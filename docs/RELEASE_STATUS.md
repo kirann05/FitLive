@@ -2,6 +2,8 @@
 
 FitLive has a working hosted web application and a tested Java/PostgreSQL account backend. The entire master specification is **not yet production-complete**. This page separates implementation from external verification.
 
+See [the specification readiness audit](READINESS_AUDIT.md) for the current feature-by-feature gaps and ten-user launch decision. Deployment is paused following the owner’s switch to Render; the AWS setup is being removed.
+
 ## Implemented
 
 - Private web account, real/demo modes, recovery context, check-ins, workout logging and progression, food-label logging, pantry accounting, groceries, progress and feedback audit.
@@ -15,11 +17,11 @@ FitLive has a working hosted web application and a tested Java/PostgreSQL accoun
 
 ## Required before calling the product production-ready
 
-1. AWS sign-in and account eligibility/credit/budget verification; deploy Java and private PostgreSQL, configure HTTPS and bridge secrets, then verify hosted web ↔ Java ↔ iPhone with the same account.
-2. Finish Xcode iOS/watchOS platform downloads, signing team and device setup. Build/install the combined application and test pairing, offline retries, reinstall/account switching, accessibility and Health permissions on real hardware.
+1. Complete the selected Render hosting setup, deploy Java and durable PostgreSQL, configure HTTPS and bridge secrets, then verify hosted web ↔ Java ↔ iPhone with the same account. Public onboarding and the requested Google login remain incomplete.
+2. The combined iPhone/Watch simulator build passes. Finish signing team and physical-device setup. Install the combined application and test pairing, offline retries, reinstall/account switching, accessibility and Health permissions on real hardware.
 3. Compare HealthKit summaries with device records, handle source disagreement, background anchored sync and deleted records. Current sync is foreground and summarizes sleep/RHR/HRV only.
 4. Configure USDA/OpenAI secrets and execute live provider checks, adversarial evaluations and failure recovery. Mocked contracts do not establish real model accuracy.
 5. Complete native/web feature parity: custom program and recipe editing currently live on the web; native food logging is label-based, native coach is deterministic. Notifications, food photo/barcode/receipt parsing and approved external grocery-cart integration remain unimplemented.
 6. Run requested browser interaction/visual QA, native accessibility review, restore drills, load/latency testing and a security review before a broader release.
 
-No App Store/TestFlight submission, AWS provisioning, automatic purchases, clinical validation, production SLA or measured AI accuracy is claimed. AWS resources must not be started on the assumption that a $1 account charge guarantees free hosting.
+No App Store/TestFlight submission, completed shared-backend deployment, automatic purchases, clinical validation, production SLA or measured AI accuracy is claimed. AWS resources were started within verified free-plan credits and are now being removed after the hosting-provider change.

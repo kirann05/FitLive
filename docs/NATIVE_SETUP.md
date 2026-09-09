@@ -23,8 +23,8 @@ Watch sessions are stored locally and transferred to the paired phone. The phone
 
 ## Verified and pending
 
-The iPhone and Watch source each pass `swiftc -typecheck` against the installed Apple SDKs. This is stronger than syntax parsing, but is not a signed app or device test. The combined Xcode build currently reports a missing watchOS platform installation. No TestFlight/App Store build has been submitted.
+The iPhone and Watch source each pass `swiftc -typecheck` against the installed Apple SDKs. This is stronger than syntax parsing, but is not a signed app or device test. The combined iPhone plus embedded Watch simulator build passes after installing both platforms. No connected physical device or valid signing identity was found during the latest check. No TestFlight/App Store build has been submitted.
 
-Before beta: finish platform compilation, signing, final privacy manifest review, real Health comparison, DST/travel/source conflict cases, revoked/partial permissions, Watch queue recovery, VoiceOver/Dynamic Type and native/web data consistency checks.
+Before beta: finish signing, final privacy manifest review, real Health comparison, DST/travel/source conflict cases, revoked/partial permissions, Watch queue recovery, VoiceOver/Dynamic Type and native/web data consistency checks.
 
 References: [HealthKit authorization](https://developer.apple.com/documentation/healthkit/authorizing-access-to-health-data), [anchored queries](https://developer.apple.com/documentation/healthkit/hkanchoredobjectquery).

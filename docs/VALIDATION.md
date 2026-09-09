@@ -4,7 +4,7 @@ Executed on 2026-09-09. These are development checks, not production health-outc
 
 | Check | Result |
 | --- | --- |
-| Shared domain/planning and mocked AI tests | 28 passed |
+| Shared domain/planning and mocked AI tests | 31 passed, including latest local fixes |
 | Web TypeScript and lint | Passed |
 | Sites-compatible production build | Passed |
 | Local authenticated web API | Passed, including deletion retry and stale-write rejection |
@@ -12,12 +12,12 @@ Executed on 2026-09-09. These are development checks, not production health-outc
 | Packaged Java container HTTP test | Passed: signed accounts, replay, native pairing, concurrent writes, daily policy, deletion, revocation and stale-write rejection |
 | Native core executable checks | 6 passed: interval merging, missing-signal encoding, packet identity/date/account persistence |
 | iPhone and Watch source against Apple SDKs | Type-check passed |
-| Combined Xcode app build | Blocked by missing watchOS 26.5 platform component |
+| Combined Xcode app build | iPhone + embedded Watch simulator build passed, unsigned |
 | Native signing/install/HealthKit/Watch hardware | Not yet verified |
 | Native icon | Generated and visually inspected |
 | Browser interaction/visual QA and WebMCP runtime | Not performed/verified |
 | Live USDA/OpenAI | Not configured or measured; mocked AI tests are not live evaluations |
-| AWS deployment | Awaiting sign-in, account/credit/budget check and configuration |
+| Hosting | AWS setup being removed at owner request; Render not deployed; shared hosted backend pending |
 | Remote GitHub CI | Workflow supplied; verify the run for the published commit |
 
 ## Regression found and fixed
