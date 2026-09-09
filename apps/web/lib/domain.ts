@@ -1,3 +1,5 @@
+import { bodyEntrySchema, type BodyEntry } from "./habits.ts";
+import { cartItemsSchema, cartSchema, cartPolicy, checkCart, type Cart } from "./grocery.ts";
 import { z } from "zod";
 import type { CoachResult } from "./ai/provider";
 import {
@@ -116,6 +118,8 @@ export type State = {
   }[];
   onboarded: boolean;
   program?: Program;
+  cart?: Cart;
+  bodyEntries?: BodyEntry[];
   savedFoods?: Food[];
   recipes?: Recipe[];
   mealPlans?: PlannedMeal[];
@@ -147,6 +151,11 @@ const calendarDate = z
     );
   }, "Use a valid calendar date");
 export const commandSchema = z.discriminatedUnion("type", [
+  z.object({type:z.literal("body-entry"),entry:bodyEntrySchema}),
+  z.object({type:z.literal("body-delete"),date:calendarDate}),
+  z.object({type:z.literal("cart-preview"),items:cartItemsSchema}),
+  z.object({type:z.literal("cart-approve"),id:z.string()}),
+  z.object({type:z.literal("meal-batch"),items:z.array(z.object({food:foodSchema,grams:num(1,2000)})).min(1).max(8)}),
   z.object({ type: z.literal("program"), program: programSchema }),
   z.object({ type: z.literal("preferences"), preferences: preferencesSchema }),
   z.object({ type: z.literal("save-food"), food: foodSchema }),
@@ -823,7 +832,7 @@ export function coach(s: State, message: string, now = new Date()) {
   if (/buy|purchase|checkout|order groceries/.test(m))
     return "I can prepare a shopping list in Eat → Groceries. FitLive does not place orders or spend money.";
   if (/food|eat|protein|meal|pantry/.test(m)) {
-    const t = totals(s);
+    const t = totals(s, dateKey(now, s.profile.timezone));
     const candidates = foods.filter(
       (f) =>
         allowed(f, s.profile) &&
@@ -848,6 +857,29 @@ export function apply(
   const s = structuredClone(state),
     day = dateKey(now, s.profile.timezone);
   switch (c.type) {
+    case "body-entry":
+      if(c.entry.date>day)throw new Error("Measurement date cannot be in the future.");
+      s.bodyEntries=[...(s.bodyEntries??[]).filter(e=>e.date!==c.entry.date),c.entry];
+      break;
+    case "body-delete":
+      s.bodyEntries=(s.bodyEntries??[]).filter(e=>e.date!==c.date);
+      break;
+    case "cart-preview":
+      s.cart={id,createdAt:now.toISOString(),items:c.items,policy:cartPolicy(s),status:"draft"};
+      break;
+    case "cart-approve": {
+      if(!s.cart||s.cart.id!==c.id||s.cart.policy!==cartPolicy(s))throw new Error("Cart changed. Prepare a new review.");
+      const check=checkCart(s,s.cart.items);
+      if(check.issues.length)throw new Error(check.issues.join(" "));
+      s.cart={...s.cart,status:"approved",approvedAt:now.toISOString()};
+      break;
+    }
+    case "meal-batch":
+      for (const [i,item] of c.items.entries()) {
+        const updated=apply(s,{type:"meal",...item},id+":"+i,version,now);
+        s.meals=updated.meals;
+      }
+      break;
     case "program":
       s.program = c.program;
       s.profile.days = new Set(c.program.weekdays).size;
@@ -987,7 +1019,7 @@ export function apply(
       break;
     case "health":
       for (const sample of c.samples) {
-        if (Date.parse(sample.sampleAt) > now.getTime() + 300000)
+        if (sample.date > day || Date.parse(sample.sampleAt) > now.getTime() + 300000)
           throw new Error("Health samples cannot be in the future.");
         const old = s.health.find((x) => x.id === sample.id);
         if (
@@ -1180,6 +1212,8 @@ export function validateSnapshot(value: unknown): State {
       ),
       onboarded: z.boolean(),
       program: programSchema.optional(),
+      cart: cartSchema.optional(),
+      bodyEntries: z.array(bodyEntrySchema).optional(),
       savedFoods: z.array(foodSchema).optional(),
       recipes: z.array(recipeSchema).optional(),
       mealPlans: z

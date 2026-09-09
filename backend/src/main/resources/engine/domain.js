@@ -4082,6 +4082,12 @@ var FitLiveDomain = (() => {
   };
   var NEVER = INVALID;
 
+  // apps/web/lib/habits.ts
+  var bodyEntrySchema = external_exports.object({ date: external_exports.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((d) => {
+    const t = /* @__PURE__ */ new Date(d + "T12:00:00Z");
+    return Number.isFinite(t.getTime()) && t.toISOString().slice(0, 10) === d;
+  }), kg: external_exports.number().min(25).max(350), note: external_exports.string().max(300) });
+
   // apps/web/lib/planning.ts
   var prescription = external_exports.object({
     name: external_exports.string().min(1).max(100),
@@ -4235,6 +4241,24 @@ var FitLiveDomain = (() => {
     })).filter((n) => n.quantity > 0);
   }
 
+  // apps/web/lib/grocery.ts
+  var cartItemsSchema = external_exports.array(external_exports.object({ foodId: external_exports.string().min(1).max(100), grams: external_exports.number().min(1).max(1e5), estimateCents: external_exports.number().int().min(0).max(1e6) })).min(1).max(40);
+  var cartSchema = external_exports.object({ id: external_exports.string(), createdAt: external_exports.string().datetime(), items: cartItemsSchema, policy: external_exports.string(), status: external_exports.enum(["draft", "approved"]), approvedAt: external_exports.string().datetime().optional() });
+  function cartPolicy(s) {
+    return JSON.stringify({ diet: s.profile.diet, allergies: s.profile.allergies, dislikes: s.profile.dislikes, budget: s.preferences?.weeklyBudget ?? 100 });
+  }
+  function checkCart(s, items) {
+    const library = foodLibrary(s), issues = [];
+    if (new Set(items.map((i) => i.foodId)).size !== items.length) issues.push("Combine duplicate foods before review.");
+    for (const item of items) {
+      const food = library.find((f) => f.id === item.foodId);
+      if (!food || !allowed(food, s.profile) || s.mode === "real" && food.source.startsWith("Demo")) issues.push("A food is missing or conflicts with your dietary restrictions.");
+    }
+    const total = items.reduce((a, i) => a + i.estimateCents, 0), budget = Math.round((s.preferences?.weeklyBudget ?? 100) * 100);
+    if (total > budget) issues.push("The estimated total exceeds your weekly budget.");
+    return { total, budget, issues };
+  }
+
   // apps/web/lib/domain.ts
   var foodSchema = external_exports.object({
     id: external_exports.string().max(100),
@@ -4256,6 +4280,11 @@ var FitLiveDomain = (() => {
     return Number.isFinite(d.getTime()) && d.toISOString().slice(0, 10) === value;
   }, "Use a valid calendar date");
   var commandSchema = external_exports.discriminatedUnion("type", [
+    external_exports.object({ type: external_exports.literal("body-entry"), entry: bodyEntrySchema }),
+    external_exports.object({ type: external_exports.literal("body-delete"), date: calendarDate }),
+    external_exports.object({ type: external_exports.literal("cart-preview"), items: cartItemsSchema }),
+    external_exports.object({ type: external_exports.literal("cart-approve"), id: external_exports.string() }),
+    external_exports.object({ type: external_exports.literal("meal-batch"), items: external_exports.array(external_exports.object({ food: foodSchema, grams: num(1, 2e3) })).min(1).max(8) }),
     external_exports.object({ type: external_exports.literal("program"), program: programSchema }),
     external_exports.object({ type: external_exports.literal("preferences"), preferences: preferencesSchema }),
     external_exports.object({ type: external_exports.literal("save-food"), food: foodSchema }),
@@ -4805,7 +4834,7 @@ var FitLiveDomain = (() => {
     if (/buy|purchase|checkout|order groceries/.test(m))
       return "I can prepare a shopping list in Eat \u2192 Groceries. FitLive does not place orders or spend money.";
     if (/food|eat|protein|meal|pantry/.test(m)) {
-      const t = totals(s);
+      const t = totals(s, dateKey(now, s.profile.timezone));
       const candidates = foods.filter(
         (f) => allowed(f, s.profile) && s.pantry.some((p) => p.name === f.name && p.quantity > 0)
       );
@@ -4820,6 +4849,29 @@ var FitLiveDomain = (() => {
     if (c.type === "mode") return c.mode === "demo" ? seed(now) : blank();
     const s = structuredClone(state), day = dateKey(now, s.profile.timezone);
     switch (c.type) {
+      case "body-entry":
+        if (c.entry.date > day) throw new Error("Measurement date cannot be in the future.");
+        s.bodyEntries = [...(s.bodyEntries ?? []).filter((e) => e.date !== c.entry.date), c.entry];
+        break;
+      case "body-delete":
+        s.bodyEntries = (s.bodyEntries ?? []).filter((e) => e.date !== c.date);
+        break;
+      case "cart-preview":
+        s.cart = { id, createdAt: now.toISOString(), items: c.items, policy: cartPolicy(s), status: "draft" };
+        break;
+      case "cart-approve": {
+        if (!s.cart || s.cart.id !== c.id || s.cart.policy !== cartPolicy(s)) throw new Error("Cart changed. Prepare a new review.");
+        const check = checkCart(s, s.cart.items);
+        if (check.issues.length) throw new Error(check.issues.join(" "));
+        s.cart = { ...s.cart, status: "approved", approvedAt: now.toISOString() };
+        break;
+      }
+      case "meal-batch":
+        for (const [i, item] of c.items.entries()) {
+          const updated = apply(s, { type: "meal", ...item }, id + ":" + i, version, now);
+          s.meals = updated.meals;
+        }
+        break;
       case "program":
         s.program = c.program;
         s.profile.days = new Set(c.program.weekdays).size;
@@ -4955,7 +5007,7 @@ var FitLiveDomain = (() => {
         break;
       case "health":
         for (const sample of c.samples) {
-          if (Date.parse(sample.sampleAt) > now.getTime() + 3e5)
+          if (sample.date > day || Date.parse(sample.sampleAt) > now.getTime() + 3e5)
             throw new Error("Health samples cannot be in the future.");
           const old = s.health.find((x) => x.id === sample.id);
           if (old && JSON.stringify({ ...old, syncAt: "" }) !== JSON.stringify({ ...sample, syncAt: "" }))
@@ -5137,6 +5189,8 @@ var FitLiveDomain = (() => {
       ),
       onboarded: external_exports.boolean(),
       program: programSchema.optional(),
+      cart: cartSchema.optional(),
+      bodyEntries: external_exports.array(bodyEntrySchema).optional(),
       savedFoods: external_exports.array(foodSchema).optional(),
       recipes: external_exports.array(recipeSchema).optional(),
       mealPlans: external_exports.array(

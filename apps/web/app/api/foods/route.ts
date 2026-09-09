@@ -1,3 +1,4 @@
+import { mapUsdaFood } from "@/lib/food-data";
 import { limit } from "@/lib/limits";
 import { env } from "cloudflare:workers";
 import { owner } from "@/lib/storage";
@@ -51,22 +52,7 @@ export async function GET(req: Request) {
     };
     return Response.json(
       {
-        foods: result.foods.map((f) => {
-          const n = (id: number) =>
-            f.foodNutrients.find((x) => x.nutrientId === id)?.value ?? 0;
-          return {
-            id: String(f.fdcId),
-            name: f.description,
-            kcal: n(1008),
-            protein: n(1003),
-            carbs: n(1005),
-            fat: n(1004),
-            fiber: n(1079),
-            ingredients: f.ingredients ?? "Not supplied by source",
-            source: `USDA FoodData Central #${f.fdcId}`,
-            requiresDietConfirmation: true,
-          };
-        }),
+        foods: result.foods.map(mapUsdaFood),
       },
       { headers: { "Cache-Control": "private, max-age=300" } },
     );

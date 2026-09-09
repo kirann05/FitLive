@@ -1,9 +1,9 @@
 import { z } from "zod";
-import { coach, recovery, plan, totals, type State } from "../domain.ts";
+import { coach, recovery, plan, totals, dateKey, type State } from "../domain.ts";
 import { mealCandidates } from "../planning.ts";
 export type CoachResult = {
   text: string;
-  provider: "rules" | "openai";
+  provider: "rules" | "openai" | "ollama" | "huggingface";
   model: string | null;
   tools: string[];
   status: "ready" | "not_configured" | "consent_required" | "fallback";
@@ -22,6 +22,7 @@ export type ModelResponse = {
   )[];
 };
 export interface AIProvider {
+  readonly providerId?: "openai" | "ollama" | "huggingface";
   complete(request: Record<string, unknown>): Promise<ModelResponse>;
 }
 export class OpenAIProvider implements AIProvider {
@@ -131,7 +132,7 @@ export function executeReadTool(
       };
     case "get_nutrition_context":
       return {
-        totals: totals(s),
+        totals: totals(s, dateKey(now, s.profile.timezone)),
         targets: { protein: s.profile.protein, calories: s.profile.calories },
         diet: s.profile.diet,
         allergies: s.profile.allergies,
@@ -213,6 +214,7 @@ export async function runCoach(
         }
         continue;
       }
+      if (!calls.length) throw new Error("A grounded answer requires a state read");
       const text = response.output
         .filter((x) => x.type === "message")
         .flatMap(
@@ -232,7 +234,7 @@ export async function runCoach(
         throw new Error("Unsupported model claim");
       return {
         text: combined,
-        provider: "openai",
+        provider: provider.providerId ?? "openai",
         model,
         tools: calls,
         status: "ready",

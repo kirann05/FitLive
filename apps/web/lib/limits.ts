@@ -1,4 +1,4 @@
-import { db } from "./storage";
+import { db } from "./database";
 export async function limit(
   owner: string,
   action: string,

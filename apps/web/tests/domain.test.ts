@@ -202,3 +202,6 @@ test("invalid numeric input cannot reach arithmetic", () => {
     ),
   );
 });
+test("health dates cannot be future days even with an old measurement timestamp", () => {
+  assert.throws(() => apply(blank(), { type: "health", samples: [{ id: "future-day", date: "2030-01-01", sleep: 420, rhr: null, hrv: null, source: "HealthKit", sampleAt: now.toISOString(), syncAt: now.toISOString() }] }, "future", 0, now), /future/);
+});

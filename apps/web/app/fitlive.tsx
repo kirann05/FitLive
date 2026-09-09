@@ -1,4 +1,9 @@
 "use client";
+import { BodyTrend } from "@/components/fitlive/body-trend";
+import type { FoodCandidate } from "@/lib/food-data";
+import { GroceryReview } from "@/components/fitlive/grocery-review";
+import { WeeklyReview, NaturalMeal } from "@/components/fitlive/review";
+import { AccountSession } from "@/components/fitlive/account-session";
 import Link from "next/link";
 import {
   ProgramEditor,
@@ -143,7 +148,7 @@ function saveFile(name: string, data: string, type = "application/json") {
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-export default function Home({ ownerId }: { ownerId: string }) {
+export default function Home({ ownerId, authMode }: { ownerId: string; authMode: "google" | "platform" }) {
   const draftKey = "fitlive-workout-draft:" + ownerId;
   const [connections, setConnections] = useState({
     ai: false,
@@ -180,8 +185,8 @@ export default function Home({ ownerId }: { ownerId: string }) {
     [chat, setChat] = useState(""),
     [foodQuery, setFoodQuery] = useState(""),
     [searching, setSearching] = useState(false),
-    [searchResults, setSearchResults] = useState<Food[]>([]),
-    [selectedFood, setSelectedFood] = useState<Food | null>(null),
+    [searchResults, setSearchResults] = useState<FoodCandidate[]>([]),
+    [selectedFood, setSelectedFood] = useState<FoodCandidate | null>(null),
     [foodError, setFoodError] = useState(""),
     [pantryEdit, setPantryEdit] = useState<Pantry | null>(null);
   useEffect(() => {
@@ -389,10 +394,10 @@ export default function Home({ ownerId }: { ownerId: string }) {
     setFoodError("");
     try {
       const resp = await fetch("/api/foods?q=" + encodeURIComponent(foodQuery));
-      const d = (await resp.json()) as { error: string; foods: Food[] };
+      const d = (await resp.json()) as { error: string; foods: FoodCandidate[] };
       if (!resp.ok) throw new Error(d.error);
       setSearchResults(
-        d.foods.map((f: Food) => ({
+        d.foods.map((f: FoodCandidate) => ({
           ...f,
           vegan: false,
           vegetarian: false,
@@ -881,6 +886,7 @@ export default function Home({ ownerId }: { ownerId: string }) {
                 )}
               </TabsContent>
               <TabsContent value="Eat">
+                <NaturalMeal state={s} busy={busy} act={act} />
                 <div className="macro-grid">
                   {[
                     ["Protein", t.protein, s.profile.protein, "g"],
@@ -1050,6 +1056,7 @@ export default function Home({ ownerId }: { ownerId: string }) {
                     </section>
                   </TabsContent>
                   <TabsContent value="Groceries">
+                    <GroceryReview state={s} busy={busy} act={act} />
                     <section className="panel">
                       <div className="row spread">
                         <div>
@@ -1121,6 +1128,8 @@ export default function Home({ ownerId }: { ownerId: string }) {
                 </Tabs>
               </TabsContent>
               <TabsContent value="Progress">
+                <WeeklyReview state={s} />
+                <BodyTrend state={s} busy={busy} act={act} />
                 <ProgressView state={s} />
                 <Milestones state={s} />
                 <section className="panel small-space">
@@ -1189,7 +1198,7 @@ export default function Home({ ownerId }: { ownerId: string }) {
                           <span className="eyebrow">
                             {m.role === "user"
                               ? "YOU"
-                              : m.provider === "openai"
+                              : m.provider && m.provider !== "rules"
                                 ? "FITLIVE · AI"
                                 : "FITLIVE · RULES"}
                           </span>
@@ -1328,6 +1337,7 @@ export default function Home({ ownerId }: { ownerId: string }) {
         }
         description="You can change these anytime. Targets are editable planning values, not medical prescriptions."
       >
+        <AccountSession mode={authMode} />
         <ProfileForm
           profile={s.profile}
           busy={busy}
@@ -1728,7 +1738,7 @@ export default function Home({ ownerId }: { ownerId: string }) {
         <p className="muted">
           Deletion removes application records and local workout drafts.
           Provider backup retention follows the hosting service’s policies. Your
-          ChatGPT identity remains separate.
+          sign-in provider account remains separate.
         </p>
       </Modal>
       <AlertDialog
@@ -1764,6 +1774,7 @@ export default function Home({ ownerId }: { ownerId: string }) {
                   localStorage.removeItem(draftKey);
                   setDraft([]);
                   setActive(false);
+                  if (deleting && authMode === "google") window.location.assign("/login");
                   setDeleting(false);
                   setModeConfirm(null);
                 }
@@ -1974,7 +1985,7 @@ function MealForm({
   busy,
   onSave,
 }: {
-  food: Food | null;
+  food: FoodCandidate | null;
   state: State;
   busy: boolean;
   onSave: (c: Command) => void;
@@ -2027,7 +2038,8 @@ function MealForm({
               max={k === "kcal" ? 1000 : 100}
               step="0.1"
               required
-              defaultValue={food?.[k] ?? 0}
+              defaultValue={food?.[k] ?? ""}
+              readOnly={!!food?.source.startsWith("USDA") && food[k] !== null}
             />
           </Field>
         ))}
@@ -2042,8 +2054,10 @@ function MealForm({
           />
         </Field>
       </div>
+      {food?.ingredients && <p className="muted">Ingredients from source: {food.ingredients}</p>}
+      <p className="muted">Any missing nutrient values must be confirmed from the label. A blank value is not zero.</p>
       <Field label="All allergens on label · comma separated">
-        <input name="allergens" defaultValue={food?.allergens.join(", ")} />
+        <input name="allergens" defaultValue={food?.allergens?.join(", ")} />
       </Field>
       <div className="row wrap">
         <label className="consent">

@@ -1,0 +1,18 @@
+"use client";
+import { useState } from "react";
+import { weeklyReview, parseFoodText } from "@/lib/review";
+import { allowed, type State, type Command, type Food } from "@/lib/domain";
+import { foodLibrary } from "@/lib/planning";
+type Act=(command:Command,close?:boolean)=>Promise<boolean>;
+export function WeeklyReview({state}:{state:State}) {
+ const r=weeklyReview(state);
+ return <section className="panel small-space"><p className="eyebrow">WEEKLY REVIEW · {r.start} — {r.end}</p><h3>A useful look back</h3><div className="review-stats"><p><strong>{r.completed}</strong> training days · {r.planned} planned</p><p><strong>{r.foodDays}/7</strong> days with food records</p><p><strong>{r.proteinDays}</strong> logged days at your protein target</p><p><strong>{r.meanSleep===null?"—":`${Math.floor(r.meanSleep/60)}h ${r.meanSleep%60}m`}</strong> average sleep · {r.sleepDays} recorded nights</p></div><p>{r.feedback?`${r.accepted} of ${r.feedback} reviewed recommendations were accepted.`:"Give feedback on Today to help shape the next action."}{r.sleepChange!==null?` Sleep duration changed by ${r.sleepChange>0?"+":""}${r.sleepChange} minutes from the previous recorded week.`:""}</p><h4>Consider for next week</h4><ul>{r.suggestions.map(x=><li key={x}>{x}</li>)}</ul><p className="muted">Missing records stay missing. These suggestions do not change your schedule or targets.</p></section>;
+}
+export function NaturalMeal({state,busy,act}:{state:State;busy:boolean;act:Act}) {
+ const [text,setText]=useState("");const [error,setError]=useState("");
+ const [items,setItems]=useState<{name:string;grams:number|null;foodId:string}[]>([]);
+ const library=foodLibrary(state).filter(f=>allowed(f,state.profile)&&(state.mode==="demo"||!f.source.startsWith("Demo")));
+ function parse(){try{setItems(parseFoodText(text).map(x=>({...x,foodId:library.find(f=>f.name.toLowerCase()===x.name.toLowerCase())?.id??""})));setError("");}catch(e){setError((e as Error).message);}}
+ async function save(){setError("");try{const selected=items.map(x=>({food:library.find(f=>f.id===x.foodId) as Food,grams:x.grams??0}));if(selected.some(x=>!x.food||x.grams<1))throw new Error("Choose a verified food and confirm grams for every item.");const saved=await act({type:"meal-batch",items:selected},false);if(saved){setItems([]);setText("");}}catch(e){setError((e as Error).message);}}
+ return <section className="panel small-space"><h3>Describe your meal</h3><p>Try “150 g tofu, 100 g rice”. Choose the matching food records and confirm portions before saving.</p><label className="field"><span>What did you eat?</span><textarea maxLength={600} value={text} onChange={e=>setText(e.target.value)} placeholder="150 g tofu, 100 g rice"/></label><button className="secondary" disabled={!text.trim()||busy} onClick={parse}>Review foods</button>{items.map((x,i)=><div className="review-food-row" key={i}><label><span>{x.name} · food record</span><select value={x.foodId} onChange={e=>setItems(items.map((v,j)=>j===i?{...v,foodId:e.target.value}:v))}><option value="">Choose a saved food</option>{library.map(f=><option key={f.id} value={f.id}>{f.name} · {f.source}</option>)}</select></label><label><span>Confirmed grams</span><input type="number" min={1} max={2000} step="0.1" value={x.grams??""} onChange={e=>setItems(items.map((v,j)=>j===i?{...v,grams:Number(e.target.value)}:v))}/></label></div>)}{items.length>0&&<><p className="muted">If a food is missing, add it through verified food search or a confirmed package label first. Household portions are not guessed.</p><button className="primary" disabled={busy||items.some(x=>!x.foodId||!x.grams)} onClick={()=>void save()}>Confirm & save meal</button></>}{error&&<p role="alert">{error}</p>}</section>;
+}

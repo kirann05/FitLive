@@ -1,16 +1,12 @@
 import { javaBackend, javaRequest } from "./java-backend";
-import { env } from "cloudflare:workers";
-import { getChatGPTUser } from "@/app/chatgpt-auth";
+import { currentUser } from "./auth/session";
+import { db } from "./database";
 import { generateCoach } from "./ai/runtime";
 import { apply, blank, type State } from "./domain";
-export const db = () => {
-  const d = (env as unknown as { DB?: D1Database }).DB;
-  if (!d) throw new Error("Cloud storage is not configured.");
-  return d;
-};
+export { db } from "./database";
 export async function owner() {
-  const u = await getChatGPTUser();
-  return u?.userId ?? null;
+  const user = await currentUser();
+  return user?.userId ?? null;
 }
 export async function load(user: string) {
   if (javaBackend()) {
@@ -73,6 +69,7 @@ export async function mutate(
           ),
         db().prepare("DELETE FROM device_tokens WHERE owner=?").bind(user),
         db().prepare("DELETE FROM operations WHERE owner=?").bind(user),
+        db().prepare("DELETE FROM auth_sessions WHERE owner=?").bind(user),
       ]);
     }
     return result;

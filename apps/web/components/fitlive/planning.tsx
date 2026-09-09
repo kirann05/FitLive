@@ -691,6 +691,10 @@ export function ProductPreferences({ state, busy, act }: Props) {
   return (
     <div className="small-space">
       <h3>Appearance & coaching</h3>
+      <form onSubmit={e=>{e.preventDefault();const f=new FormData(e.currentTarget);void act({type:"preferences",preferences:{...p,weeklyBudget:Number(f.get("budget"))}},false);}}>
+        <label className="field">Weekly grocery budget ($)<input name="budget" type="number" min={0} max={10000} step="0.01" required defaultValue={p.weeklyBudget}/></label>
+        <button className="secondary" disabled={busy}>Save budget</button>
+      </form>
       <label className="field small-space">
         Appearance
         <select
@@ -727,12 +731,15 @@ export function ProductPreferences({ state, busy, act }: Props) {
             )
           }
         />
-        Allow the AI coach to receive my relevant daily health summary, training
-        and nutrition context when I ask a question.
+        Allow the configured AI provider (including Hugging Face and its inference
+        provider when enabled) to receive my relevant daily health summary,
+        training and nutrition context when I ask a question.
       </label>
       <p className="muted">
         Off by default. You can revoke consent anytime. Provider setup is
-        separate; core logging works without AI.
+        separate; core logging works without AI. With consent off, no context is
+        sent to an AI provider. Basic coaching remains available; this is not
+        an on-device language model.
       </p>
     </div>
   );

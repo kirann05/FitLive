@@ -79,6 +79,7 @@ export async function POST(req: Request) {
             "DELETE FROM device_tokens WHERE owner=? AND EXISTS(SELECT 1 FROM accounts WHERE owner=? AND last_operation=?)",
           )
           .bind(u, u, body.id),
+        db().prepare("DELETE FROM auth_sessions WHERE owner=? AND EXISTS(SELECT 1 FROM accounts WHERE owner=? AND last_operation=?)").bind(u,u,body.id),
         db()
           .prepare(
             "INSERT OR IGNORE INTO operations(owner,id,created_at) SELECT ?,?,? WHERE EXISTS(SELECT 1 FROM accounts WHERE owner=? AND last_operation=?)",
@@ -112,7 +113,7 @@ export async function POST(req: Request) {
         400,
       );
     if (
-      /dietary|pantry|matching|future|Conflicting|verified food/.test(message)
+      /dietary|pantry|matching|future|Conflicting|verified food|Cart changed|weekly budget|duplicate foods/.test(message)
     )
       return response({ error: message }, 400);
     return response(

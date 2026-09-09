@@ -22,6 +22,20 @@
       "when": 1788927715602,
       "tag": "0002_tired_scorpion",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1788933346645,
+      "tag": "0003_flawless_mojo",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1788933405726,
+      "tag": "0004_fearless_ben_parker",
+      "breakpoints": true
     }
   ]
 }
