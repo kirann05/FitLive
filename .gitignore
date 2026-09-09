@@ -1,0 +1,13 @@
+.DS_Store
+.env
+.env.local
+.env.production
+*.pem
+*.key
+node_modules/
+**/target/
+**/.build/
+**/DerivedData/
+**/xcuserdata/
+**/.swiftpm/
+work/

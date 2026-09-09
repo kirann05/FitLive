@@ -1,0 +1,23 @@
+name: FitLive
+options:
+  bundleIdPrefix: com.fitlive
+  deploymentTarget:
+    iOS: '17.0'
+settings:
+  SWIFT_VERSION: '5.9'
+targets:
+  FitLive:
+    type: application
+    platform: iOS
+    sources: [FitLive]
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.fitlive.companion
+      GENERATE_INFOPLIST_FILE: YES
+      INFOPLIST_KEY_NSHealthShareUsageDescription: FitLive reads sleep, resting heart rate and HRV to explain your daily training context.
+      INFOPLIST_KEY_NSHealthUpdateUsageDescription: FitLive does not write health records.
+      INFOPLIST_KEY_UILaunchScreen_Generation: YES
+      TARGETED_DEVICE_FAMILY: '1'
+    entitlements:
+      path: FitLive/FitLive.entitlements
+      properties:
+        com.apple.developer.healthkit: true

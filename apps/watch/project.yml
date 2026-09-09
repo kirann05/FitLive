@@ -1,0 +1,16 @@
+name: FitLiveWatch
+options:
+  bundleIdPrefix: com.fitlive
+  deploymentTarget:
+    watchOS: '10.0'
+targets:
+  FitLiveWatch:
+    type: application
+    platform: watchOS
+    sources: [FitLiveWatch]
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.fitlive.watch
+      GENERATE_INFOPLIST_FILE: YES
+      INFOPLIST_KEY_WKApplication: YES
+      INFOPLIST_KEY_WKWatchOnly: YES
+      SWIFT_VERSION: '5.9'
