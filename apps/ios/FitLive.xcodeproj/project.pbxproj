@@ -1,0 +1,486 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		01DCE48A75FD106FE75A6071 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0CCA57AE6777473A4C1AC989 /* Assets.xcassets */; };
+		05AB1C13C9D12F74995ECDE8 /* PhoneWatchBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CDB71961D5C21480F837E20 /* PhoneWatchBridge.swift */; };
+		0C98BE98773241DF445EE166 /* WatchPacket.swift in Sources */ = {isa = PBXBuildFile; fileRef = D252E777F00E15909DE0B426 /* WatchPacket.swift */; };
+		12C6856D1AF62718FC6444F9 /* HealthMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6B7A307F6E5017303E93BFA /* HealthMath.swift */; };
+		57DDA760D8C0D6EC5F66F3F4 /* FitLiveApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26F8D9313FE7991EA488CD44 /* FitLiveApp.swift */; };
+		64596F0AD7F5672F4F8032F8 /* WatchPacket.swift in Sources */ = {isa = PBXBuildFile; fileRef = D252E777F00E15909DE0B426 /* WatchPacket.swift */; };
+		77F2C44CB03FB17E0C75B09C /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = BE63036EFDBA3C77F5D37513 /* PrivacyInfo.xcprivacy */; };
+		817ED09CF98B7DA3027BF9DB /* HealthMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6B7A307F6E5017303E93BFA /* HealthMath.swift */; };
+		859AB55C0B5A1FC47350B5F4 /* Keychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC9DAAE0594349989A9C966F /* Keychain.swift */; };
+		A6E15AE82EFAC67873F3F622 /* HealthBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01BBEEBDD131BAC1A67A3009 /* HealthBridge.swift */; };
+		B1C310823B17AB7C909297A6 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E0AC0B233076EAE590D11E2B /* Assets.xcassets */; };
+		B7D4A157CD094A0683588D09 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 5C45F4C601DDCDE9BAF11543 /* PrivacyInfo.xcprivacy */; };
+		C321ED939947A196194E2BE3 /* DailySummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 487286A99537C1DA02072B0D /* DailySummary.swift */; };
+		C52FFB2CEE82B6450E8AEC02 /* DailySummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 487286A99537C1DA02072B0D /* DailySummary.swift */; };
+		E12C780FB30E9261819EA873 /* FitLiveWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 8BF70A13F451360FF7F59894 /* FitLiveWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		E24B0454FA3E6F247F42AA68 /* AccountStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CEB0A85638AD3D97D91CB94 /* AccountStore.swift */; };
+		EE8C504039CB197E8EDAFF4F /* FitLiveWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76B11A6019F3C395DA143F1D /* FitLiveWatchApp.swift */; };
+		FF5A65149674378A1920C7BA /* NativeSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56B3E99A141705B99BD2762A /* NativeSettings.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		A259068E5BFF97AC6ED7BB74 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 064D31EB36647A0323AE5032 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 29EE7D952E5DB595E39496F8;
+			remoteInfo = FitLiveWatch;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		F3363A5C7E99E3D8CCCCD7CF /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				E12C780FB30E9261819EA873 /* FitLiveWatch.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		01BBEEBDD131BAC1A67A3009 /* HealthBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthBridge.swift; sourceTree = "<group>"; };
+		0CCA57AE6777473A4C1AC989 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		26F8D9313FE7991EA488CD44 /* FitLiveApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FitLiveApp.swift; sourceTree = "<group>"; };
+		2CDB71961D5C21480F837E20 /* PhoneWatchBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneWatchBridge.swift; sourceTree = "<group>"; };
+		2CEB0A85638AD3D97D91CB94 /* AccountStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountStore.swift; sourceTree = "<group>"; };
+		487286A99537C1DA02072B0D /* DailySummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailySummary.swift; sourceTree = "<group>"; };
+		56394CD6298FAD5EC618E5B5 /* FitLive.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = FitLive.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		56B3E99A141705B99BD2762A /* NativeSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeSettings.swift; sourceTree = "<group>"; };
+		5C45F4C601DDCDE9BAF11543 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		76B11A6019F3C395DA143F1D /* FitLiveWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FitLiveWatchApp.swift; sourceTree = "<group>"; };
+		8BF70A13F451360FF7F59894 /* FitLiveWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FitLiveWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		BE63036EFDBA3C77F5D37513 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		D252E777F00E15909DE0B426 /* WatchPacket.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchPacket.swift; sourceTree = "<group>"; };
+		DC9DAAE0594349989A9C966F /* Keychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keychain.swift; sourceTree = "<group>"; };
+		E0AC0B233076EAE590D11E2B /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		E6FF098EB9C5362D3FE714CA /* FitLive.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FitLive.entitlements; sourceTree = "<group>"; };
+		F6B7A307F6E5017303E93BFA /* HealthMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthMath.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		0CAC2B2CBC85899DA893579A /* FitLiveWatch */ = {
+			isa = PBXGroup;
+			children = (
+				0CCA57AE6777473A4C1AC989 /* Assets.xcassets */,
+				76B11A6019F3C395DA143F1D /* FitLiveWatchApp.swift */,
+				BE63036EFDBA3C77F5D37513 /* PrivacyInfo.xcprivacy */,
+			);
+			name = FitLiveWatch;
+			path = ../watch/FitLiveWatch;
+			sourceTree = "<group>";
+		};
+		144E1E1ADBB0BC21E79FB4E3 /* shared */ = {
+			isa = PBXGroup;
+			children = (
+				487286A99537C1DA02072B0D /* DailySummary.swift */,
+				F6B7A307F6E5017303E93BFA /* HealthMath.swift */,
+				D252E777F00E15909DE0B426 /* WatchPacket.swift */,
+			);
+			name = shared;
+			path = ../shared;
+			sourceTree = "<group>";
+		};
+		1FC72696F89D5690C43599E4 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				56394CD6298FAD5EC618E5B5 /* FitLive.app */,
+				8BF70A13F451360FF7F59894 /* FitLiveWatch.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		30FA0BC08162022307A5F7E4 /* FitLive */ = {
+			isa = PBXGroup;
+			children = (
+				2CEB0A85638AD3D97D91CB94 /* AccountStore.swift */,
+				E0AC0B233076EAE590D11E2B /* Assets.xcassets */,
+				E6FF098EB9C5362D3FE714CA /* FitLive.entitlements */,
+				26F8D9313FE7991EA488CD44 /* FitLiveApp.swift */,
+				01BBEEBDD131BAC1A67A3009 /* HealthBridge.swift */,
+				DC9DAAE0594349989A9C966F /* Keychain.swift */,
+				56B3E99A141705B99BD2762A /* NativeSettings.swift */,
+				2CDB71961D5C21480F837E20 /* PhoneWatchBridge.swift */,
+				5C45F4C601DDCDE9BAF11543 /* PrivacyInfo.xcprivacy */,
+			);
+			path = FitLive;
+			sourceTree = "<group>";
+		};
+		9E761CB0B9E2A3E19DE6DFA6 = {
+			isa = PBXGroup;
+			children = (
+				30FA0BC08162022307A5F7E4 /* FitLive */,
+				0CAC2B2CBC85899DA893579A /* FitLiveWatch */,
+				144E1E1ADBB0BC21E79FB4E3 /* shared */,
+				1FC72696F89D5690C43599E4 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		29EE7D952E5DB595E39496F8 /* FitLiveWatch */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A9DA16703AEB35A2E6D4F76B /* Build configuration list for PBXNativeTarget "FitLiveWatch" */;
+			buildPhases = (
+				BB5EB25847542382345AB527 /* Sources */,
+				853218E1F0F6D833F22FCF79 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = FitLiveWatch;
+			packageProductDependencies = (
+			);
+			productName = FitLiveWatch;
+			productReference = 8BF70A13F451360FF7F59894 /* FitLiveWatch.app */;
+			productType = "com.apple.product-type.application";
+		};
+		E788ECD49235BD4A965C13B9 /* FitLive */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 86D9B8BD64947EE990F25885 /* Build configuration list for PBXNativeTarget "FitLive" */;
+			buildPhases = (
+				57C167C044F789455439B2D6 /* Sources */,
+				3EC6191926FBECECF7589757 /* Resources */,
+				F3363A5C7E99E3D8CCCCD7CF /* Embed Watch Content */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				E387BE8962705900551ED7FF /* PBXTargetDependency */,
+			);
+			name = FitLive;
+			packageProductDependencies = (
+			);
+			productName = FitLive;
+			productReference = 56394CD6298FAD5EC618E5B5 /* FitLive.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		064D31EB36647A0323AE5032 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+				};
+			};
+			buildConfigurationList = 436676D1EB09E6B07D989B8F /* Build configuration list for PBXProject "FitLive" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 9E761CB0B9E2A3E19DE6DFA6;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 1FC72696F89D5690C43599E4 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				E788ECD49235BD4A965C13B9 /* FitLive */,
+				29EE7D952E5DB595E39496F8 /* FitLiveWatch */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		3EC6191926FBECECF7589757 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B1C310823B17AB7C909297A6 /* Assets.xcassets in Resources */,
+				B7D4A157CD094A0683588D09 /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		853218E1F0F6D833F22FCF79 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				01DCE48A75FD106FE75A6071 /* Assets.xcassets in Resources */,
+				77F2C44CB03FB17E0C75B09C /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		57C167C044F789455439B2D6 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E24B0454FA3E6F247F42AA68 /* AccountStore.swift in Sources */,
+				C321ED939947A196194E2BE3 /* DailySummary.swift in Sources */,
+				57DDA760D8C0D6EC5F66F3F4 /* FitLiveApp.swift in Sources */,
+				A6E15AE82EFAC67873F3F622 /* HealthBridge.swift in Sources */,
+				12C6856D1AF62718FC6444F9 /* HealthMath.swift in Sources */,
+				859AB55C0B5A1FC47350B5F4 /* Keychain.swift in Sources */,
+				FF5A65149674378A1920C7BA /* NativeSettings.swift in Sources */,
+				05AB1C13C9D12F74995ECDE8 /* PhoneWatchBridge.swift in Sources */,
+				0C98BE98773241DF445EE166 /* WatchPacket.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BB5EB25847542382345AB527 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C52FFB2CEE82B6450E8AEC02 /* DailySummary.swift in Sources */,
+				EE8C504039CB197E8EDAFF4F /* FitLiveWatchApp.swift in Sources */,
+				817ED09CF98B7DA3027BF9DB /* HealthMath.swift in Sources */,
+				64596F0AD7F5672F4F8032F8 /* WatchPacket.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		E387BE8962705900551ED7FF /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 29EE7D952E5DB595E39496F8 /* FitLiveWatch */;
+			targetProxy = A259068E5BFF97AC6ED7BB74 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		751AA7FD14D75EDC166BEE3F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = FitLive/FitLive.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "FitLive reads sleep, resting heart rate and HRV to explain your daily training context.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "FitLive does not write health records.";
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.fitlive.companion;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		B586574D386A3094A28FB02B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_WKApplication = YES;
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.fitlive.companion;
+				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = NO;
+				PRODUCT_BUNDLE_IDENTIFIER = com.fitlive.companion.watchkitapp;
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Release;
+		};
+		D009DCDD3CCBB24902B3E83C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.9;
+			};
+			name = Debug;
+		};
+		DD57BF21A163D15197B46E39 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.9;
+			};
+			name = Release;
+		};
+		ECD8ABED841BFF5D6B14D67A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_WKApplication = YES;
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.fitlive.companion;
+				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = NO;
+				PRODUCT_BUNDLE_IDENTIFIER = com.fitlive.companion.watchkitapp;
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Debug;
+		};
+		F13177862C2F256BA07BAE65 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = FitLive/FitLive.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "FitLive reads sleep, resting heart rate and HRV to explain your daily training context.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "FitLive does not write health records.";
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.fitlive.companion;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		436676D1EB09E6B07D989B8F /* Build configuration list for PBXProject "FitLive" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D009DCDD3CCBB24902B3E83C /* Debug */,
+				DD57BF21A163D15197B46E39 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		86D9B8BD64947EE990F25885 /* Build configuration list for PBXNativeTarget "FitLive" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F13177862C2F256BA07BAE65 /* Debug */,
+				751AA7FD14D75EDC166BEE3F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		A9DA16703AEB35A2E6D4F76B /* Build configuration list for PBXNativeTarget "FitLiveWatch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				ECD8ABED841BFF5D6B14D67A /* Debug */,
+				B586574D386A3094A28FB02B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 064D31EB36647A0323AE5032 /* Project object */;
+}

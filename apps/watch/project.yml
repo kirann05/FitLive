@@ -7,10 +7,11 @@ targets:
   FitLiveWatch:
     type: application
     platform: watchOS
-    sources: [FitLiveWatch]
+    sources: [FitLiveWatch, ../shared]
     settings:
-      PRODUCT_BUNDLE_IDENTIFIER: com.fitlive.watch
+      PRODUCT_BUNDLE_IDENTIFIER: com.fitlive.companion.watchkitapp
+      ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
       GENERATE_INFOPLIST_FILE: YES
       INFOPLIST_KEY_WKApplication: YES
-      INFOPLIST_KEY_WKWatchOnly: YES
+      INFOPLIST_KEY_WKCompanionAppBundleIdentifier: com.fitlive.companion
       SWIFT_VERSION: '5.9'
