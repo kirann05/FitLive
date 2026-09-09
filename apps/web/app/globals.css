@@ -1115,3 +1115,27 @@ footer .text-button {
 .review-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:24px 0}.review-stats p{background:var(--surface,#f7f8fa);padding:16px;border-radius:12px}.review-food-row{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin:20px 0}.review-food-row label{display:grid;gap:8px}.review-food-row select,.review-food-row input{width:100%;min-height:44px}@media(max-width:600px){.review-food-row,.review-stats{grid-template-columns:1fr}}
 
 .photo-actions{flex-wrap:wrap;gap:12px}.photo-meal .consent{margin:16px 0}.meal-photo{margin:16px 0;display:grid;gap:8px;justify-items:start}.meal-photo img{max-width:100%;height:auto;max-height:300px;object-fit:contain;border-radius:16px}.meal-review{margin-top:24px}.meal-item{padding:16px 0;border-bottom:1px solid #e3e9ed;margin-bottom:12px}.photo-meal button{min-height:44px}
+
+/* Shared, quiet input surfaces for food and coaching. */
+.photo-meal{padding:clamp(20px,3vw,36px);max-width:960px;margin-inline:auto}
+.photo-meal h3{font-size:clamp(24px,3vw,30px);letter-spacing:-.035em;margin:4px 0 8px}
+.photo-meal>p:not(.eyebrow){color:var(--muted-foreground);margin-bottom:20px}
+.photo-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:24px 0 20px}
+.capture-choice{display:flex;align-items:center;justify-content:center;gap:10px;padding:22px 16px;border:1px solid var(--border);border-radius:16px;background:var(--background);color:var(--foreground);font-size:16px;font-weight:500;transition:background .15s,border-color .15s}
+.capture-choice:hover{background:var(--accent);border-color:var(--ring)}
+.meal-composer{border:1px solid var(--border);border-radius:18px;background:var(--card);overflow:visible;margin-bottom:20px}
+.meal-composer:focus-within{outline:2px solid var(--ring);outline-offset:2px}
+.meal-composer .field{margin:0;padding:16px 18px 0}
+.meal-composer .field>span{font-size:14px;color:var(--muted-foreground);font-weight:500}
+.meal-composer textarea{border:0!important;background:transparent!important;box-shadow:none!important;outline:none!important;padding:10px 0!important;min-height:86px;font-size:16px;resize:vertical}
+.composer-tools{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 14px 12px;color:var(--muted-foreground);font-size:14px}
+.dictation{position:relative;flex-shrink:0}
+.dictation-button{display:flex;align-items:center;justify-content:center;gap:7px;border:1px solid var(--border);background:var(--card);color:var(--foreground);border-radius:24px;padding:9px 12px;min-height:44px;font-size:14px}
+.dictation-button.listening{background:var(--accent);border-color:var(--ring)}
+.voice-notice{position:absolute;right:0;bottom:calc(100% + 8px);z-index:20;width:min(300px,75vw);padding:16px;border:1px solid var(--border);border-radius:16px;background:var(--card);color:var(--foreground);box-shadow:0 8px 30px #172b3a18;font-size:14px;line-height:1.5}
+.voice-notice label{display:block;margin:12px 0}.voice-notice button{margin:4px}
+.meal-privacy{font-size:14px;color:var(--muted-foreground);margin:0 0 20px}.meal-privacy summary{cursor:pointer}.meal-privacy p{margin-top:8px}
+.photo-meal .consent{font-size:14px;line-height:1.6;align-items:flex-start;gap:10px}.photo-meal .consent input{flex-shrink:0;margin-top:5px}
+.photo-meal>.primary{border-radius:12px;padding:12px 22px}
+.chat-input{align-items:center;gap:10px}.chat-input input{min-width:0}
+@media(max-width:520px){.photo-actions{gap:8px}.capture-choice{padding:18px 10px}.composer-tools>span{font-size:13px}.chat-input .dictation-button span{display:none}.photo-meal{padding:20px}.chat-input{gap:6px}}

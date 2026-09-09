@@ -2,6 +2,7 @@
 import { BodyTrend } from "@/components/fitlive/body-trend";
 import type { FoodCandidate } from "@/lib/food-data";
 import { GroceryReview } from "@/components/fitlive/grocery-review";
+import { Dictation } from "@/components/fitlive/dictation";
 import { PhotoMeal } from "@/components/fitlive/photo-meal";
 import { WeeklyReview } from "@/components/fitlive/review";
 import { AccountSession } from "@/components/fitlive/account-session";
@@ -1269,6 +1270,7 @@ export default function Home({ ownerId, authMode }: { ownerId: string; authMode:
                       maxLength={1000}
                       onChange={(e) => setChat(e.target.value)}
                     />
+                    <Dictation disabled={busy} onText={text => setChat(previous => `${previous}${previous ? " " : ""}${text}`.slice(0,1000))}/>
                     <button
                       className="primary"
                       aria-label="Send message"

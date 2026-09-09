@@ -23,3 +23,7 @@ Eat supports mobile camera capture, upload and description-only analysis. Photos
 Qwen3-VL generates validated nutrition estimates. Review portions, correct the draft in plain English, remove items and save one atomic batch. Estimates remain labeled in food provenance. Photos cannot establish exact portions or allergy safety. Manual entry remains available. Drafts survive request/save failures in the open page, not reloads.
 
 Live description fixture (rice, tomato dal, paneer) returned three items in 19.9 seconds and preserved the two specified 100 g portions. Camera hardware and actual-photo recognition accuracy are not verified. Automated tests cover consent, image payload, correction context, invalid responses and atomic estimated-meal saving.
+
+## Meal composer and voice input
+
+Meal entry now uses compact camera/upload choices and a shared text/voice composer. Coach also supports voice-to-text. Dictation uses the browser SpeechRecognition API where available, with explicit speech-service consent, permission/error handling, a one-minute limit and cleanup on unmount. Text is editable and never submitted automatically. Browser speech services may process audio remotely; this is not an on-device guarantee. Unsupported browsers retain typed entry and show guidance. Actual microphone hardware/recognition accuracy is not verified. Type checking, lint and production build passed; no browser visual testing was performed.

@@ -1,6 +1,7 @@
 "use client";
 import { useRef, useState } from "react";
 import Image from "next/image";
+import { Dictation } from "./dictation";
 import { Camera, ImagePlus } from "lucide-react";
 import { allowed, type State, type Command } from "@/lib/domain";
 import { mealDraftSchema, type MealDraft } from "@/lib/ai/meal-analysis";
@@ -68,15 +69,15 @@ export function PhotoMeal({ state, busy, act }: { state: State; busy: boolean; a
     } catch(e) { setError((e as Error).message); } finally { setPending(false); }
   }
   return <section className="panel small-space photo-meal">
-    <p className="eyebrow">FOOD JOURNAL</p><h3>One photo. Your whole meal.</h3>
-    <p>Take a photo or describe your plate. Review the portions, then save everything together.</p>
+    <p className="eyebrow">FOOD JOURNAL</p><h3>What’s on your plate?</h3>
+    <p>Snap, type or speak. We’ll help you fill in the details.</p>
     <input ref={camera} type="file" accept="image/jpeg,image/png,image/webp" capture="environment" hidden onChange={e => { void photo(e.target.files?.[0]); e.target.value = ""; }} />
     <input ref={upload} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={e => { void photo(e.target.files?.[0]); e.target.value = ""; }} />
-    <div className="row photo-actions"><button type="button" className="primary" disabled={locked} onClick={() => camera.current?.click()}><Camera size={18}/> Take photo</button><button type="button" className="secondary" disabled={locked} onClick={() => upload.current?.click()}><ImagePlus size={18}/> Upload photo</button></div>
+    <div className="row photo-actions"><button type="button" className="capture-choice" disabled={locked} onClick={() => camera.current?.click()}><Camera size={18}/> Take photo</button><button type="button" className="capture-choice" disabled={locked} onClick={() => upload.current?.click()}><ImagePlus size={18}/> Upload photo</button></div>
     {image && <div className="meal-photo"><Image src={image} width={360} height={240} unoptimized alt="Your meal ready for analysis"/><button type="button" className="secondary" disabled={locked} onClick={() => { setImage(""); setDraft(null); setConfirmed(false); }}>Remove photo</button></div>}
-    {(!draft || fixing) && <label className="field"><span>{draft ? "What should we fix?" : "Describe your meal (optional with a photo)"}</span><textarea disabled={locked} maxLength={1600} value={description} onChange={e => setDescription(e.target.value)} placeholder={draft ? "The rice is 100 g cooked, and that's tomato dal, not curry." : "100 g cooked rice with tomato dal and 100 g paneer"}/></label>}
+    {(!draft || fixing) && <div className="meal-composer"><label className="field"><span>{draft ? "What should we fix?" : "Meal details"}</span><textarea disabled={locked} maxLength={1600} value={description} onChange={e => setDescription(e.target.value)} placeholder={draft ? "The rice is 100 g cooked, and that's tomato dal, not curry." : "100 g cooked rice with tomato dal and 100 g paneer"}/></label><div className="composer-tools"><span>Type it or say it naturally</span><Dictation disabled={locked} onText={text => setDescription(previous => `${previous}${previous ? " " : ""}${text}`.slice(0,1600))}/></div></div>}
     <label className="consent"><input type="checkbox" checked={consent} disabled={locked} onChange={e => setConsent(e.target.checked)}/> Allow this photo and description to be sent to Hugging Face and its AI provider for analysis.</label>
-    <p className="muted">FitLive does not save the photo. Location metadata is removed before upload. You can use manual food entry below without sending a photo to AI.</p>
+    <details className="meal-privacy"><summary>How your photo is handled</summary><p>FitLive does not store your photo. Location metadata is removed before upload. Manual entry below works without AI.</p></details>
     {(!draft || fixing) && <button type="button" className="primary" disabled={locked || !consent || (!image && !description.trim())} onClick={() => void analyze()}>{pending ? "Analyzing your meal…" : draft ? "Update meal details" : "Analyze meal"}</button>}
     {!!draft?.items.length && <div className="meal-review"><h4>Does this look right?</h4><p className="muted">Portions and nutrition are estimates. {draft.uncertainty}</p>
       {draft.items.map((item,i) => <div className="meal-item" key={i}><div className="review-food-row"><label className="field"><span>Food</span><input readOnly disabled={locked} maxLength={120} value={item.name} onChange={e => { setConfirmed(false); setDraft({ ...draft, items: draft.items.map((x,j) => j === i ? { ...x, name:e.target.value } : x) }); }}/></label><label className="field"><span>Portion (g)</span><input disabled={locked} type="number" min={1} max={2000} value={item.grams || ""} onChange={e => { setConfirmed(false); setDraft({ ...draft, items: draft.items.map((x,j) => j === i ? { ...x, grams:Number(e.target.value) } : x) }); }}/></label></div><p className="muted">~{Math.round(item.kcal * item.grams / 100)} kcal · {Math.round(item.protein * item.grams / 100)} g protein{item.allergens.length ? ` · Possible allergens: ${item.allergens.join(", ")}` : " · Allergens may be missed"}</p><button type="button" className="secondary" disabled={locked} onClick={() => { setConfirmed(false); setDraft({ ...draft, items: draft.items.filter((_,j) => j !== i) }); if(draft.items.length === 1) setFixing(true); }}>Remove {item.name}</button></div>)}
