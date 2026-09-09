@@ -35,3 +35,7 @@ Added safe-area-aware mobile bottom navigation, responsive headings/cards, stack
 Progress now starts with a selectable seven-day record: meals, calorie/protein totals, completed/partial training counts and check-in presence. Missing records show a dash rather than a fabricated zero; early users are told that longer-term patterns need more data. Dates use the account timezone. These are recorded totals, not claims of complete daily intake.
 
 Type checking, lint and production build passed. Physical iPhone/Android, keyboard, screen reader and visual viewport testing remain unverified; responsive code is not a guarantee of compatibility with every device.
+
+## Explore mode and PACE
+
+The login page offers Explore FitLive, linking to public /explore. It starts a sample dataset and applies interactive changes only in React memory, never posting account state. Refreshing/leaving discards changes; sign-in does not migrate the exploration dataset. Account endpoints retain authentication. The banner explains temporary sample data and links to sign-in. Photo analysis remains account-only; exploratory chat uses deterministic rules. Coach is displayed as PACE (Personal Activity, Coaching & Eating).

@@ -68,6 +68,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Toaster, toast } from "sonner";
 import {
   blank,
+  seed,
+  apply,
   foods,
   allowed,
   recommendation,
@@ -151,7 +153,7 @@ function saveFile(name: string, data: string, type = "application/json") {
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-export default function Home({ ownerId, authMode }: { ownerId: string; authMode: "google" | "platform" }) {
+export default function Home({ ownerId, authMode, exploring = false }: { ownerId: string; authMode: "google" | "platform"; exploring?: boolean }) {
   const draftKey = "fitlive-workout-draft:" + ownerId;
   const [connections, setConnections] = useState({
     ai: false,
@@ -160,6 +162,7 @@ export default function Home({ ownerId, authMode }: { ownerId: string; authMode:
     model: "",
   });
   useEffect(() => {
+    if (exploring) return;
     let cancelled = false;
     void fetch("/api/connections")
       .then(async (r) => {
@@ -170,7 +173,7 @@ export default function Home({ ownerId, authMode }: { ownerId: string; authMode:
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [exploring]);
   const [s, setS] = useState<State>(blank),
     [version, setVersion] = useState(0),
     [tab, setTab] = useState("Today"),
@@ -201,6 +204,7 @@ export default function Home({ ownerId, authMode }: { ownerId: string; authMode:
   const pendingKey = draftKey + ":pending";
   useEffect(() => {
     try {
+      if (exploring) return;
       const raw = sessionStorage.getItem(pendingKey);
       if (raw) {
         const value = JSON.parse(raw);
@@ -214,8 +218,9 @@ export default function Home({ ownerId, authMode }: { ownerId: string; authMode:
     } catch {
       /* A damaged request draft cannot change cloud records. */
     }
-  }, [pendingKey]);
+  }, [pendingKey, exploring]);
   const reload = useCallback(async () => {
+    if (exploring) { setS(seed()); setLoading(false); return; }
     try {
       setError("");
       const r = await fetch("/api/state", { cache: "no-store" });
@@ -232,7 +237,7 @@ export default function Home({ ownerId, authMode }: { ownerId: string; authMode:
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [exploring]);
   useEffect(() => {
     queueMicrotask(() => void reload());
     const update = () => setOffline(!navigator.onLine);
@@ -247,6 +252,7 @@ export default function Home({ ownerId, authMode }: { ownerId: string; authMode:
   useEffect(() => {
     queueMicrotask(() => {
       try {
+        if (exploring) return;
         const saved = localStorage.getItem(draftKey);
         if (saved) {
           const parsed = JSON.parse(saved);
@@ -259,10 +265,10 @@ export default function Home({ ownerId, authMode }: { ownerId: string; authMode:
         /* A corrupted draft does not affect cloud records. */
       }
     });
-  }, [draftKey]);
+  }, [draftKey, exploring]);
   useEffect(() => {
-    if (active) localStorage.setItem(draftKey, JSON.stringify(draft));
-  }, [draft, active, draftKey]);
+    if (active && !exploring) localStorage.setItem(draftKey, JSON.stringify(draft));
+  }, [draft, active, draftKey, exploring]);
   useEffect(() => {
     if (rest <= 0) return;
     const timer = setInterval(() => setRest((x) => Math.max(0, x - 1)), 1000);
@@ -273,6 +279,13 @@ export default function Home({ ownerId, authMode }: { ownerId: string; authMode:
     setBusy(true);
     setError("");
     try {
+      if (exploring) {
+        setS(apply(s, command, crypto.randomUUID(), version + 1));
+        setVersion(version + 1);
+        if (close) setModal("");
+        toast.success("Updated your temporary workspace");
+        return true;
+      }
       const key = JSON.stringify(command);
       if (pending.current?.key !== key)
         pending.current = { key, id: crypto.randomUUID(), version };
@@ -446,11 +459,12 @@ export default function Home({ ownerId, authMode }: { ownerId: string; authMode:
           {destinations.map(({ name, icon: Icon }) => (
             <TabsTrigger key={name} value={name}>
               <Icon />
-              {name}
+              {name === "Coach" ? "PACE" : name}
             </TabsTrigger>
           ))}
         </TabsList>
         <div className="page" id="main-content">
+          {exploring && <aside className="explore-notice"><div><strong>You’re exploring FitLive</strong><p>Sample data · changes last only while this page stays open. Refreshing or leaving resets them. Sign in for your own saved workspace; exploration changes won’t transfer.</p></div><a className="primary" href="/login">Make it yours</a></aside>}
           {offline && (
             <div className="notice">
               <CloudOff />
@@ -890,7 +904,7 @@ export default function Home({ ownerId, authMode }: { ownerId: string; authMode:
                 )}
               </TabsContent>
               <TabsContent value="Eat">
-                <PhotoMeal state={s} busy={busy} act={act} />
+                {exploring ? <section className="panel small-space"><h3>Try logging a meal</h3><p>Use the sample foods below to explore. Photo analysis and verified food search need an account.</p><a className="text-button" href="/login">Sign in for photo logging</a></section> : <PhotoMeal state={s} busy={busy} act={act} />}
                 <div className="macro-grid">
                   {[
                     ["Protein", t.protein, s.profile.protein, "g"],
@@ -1179,7 +1193,7 @@ export default function Home({ ownerId, authMode }: { ownerId: string; authMode:
                   <div className="row spread">
                     <div className="row">
                       <MessageCircle />
-                      <h3>Your daily coach</h3>
+                      <h3>PACE · your daily guide</h3>
                     </div>
                     <span className="chip">
                       {connections.ai && s.preferences?.aiConsent
@@ -1188,7 +1202,7 @@ export default function Home({ ownerId, authMode }: { ownerId: string; authMode:
                     </span>
                   </div>
                   <p className="muted small-space">
-                    Reads your current state. It cannot diagnose, purchase
+                    Personal Activity, Coaching & Eating. Reads your saved context. It cannot diagnose, purchase
                     groceries, or change your data through conversation.
                   </p>
                   <div className="conversation" aria-live="polite">
@@ -1267,8 +1281,8 @@ export default function Home({ ownerId, authMode }: { ownerId: string; authMode:
                     }}
                   >
                     <input
-                      aria-label="Message your coach"
-                      placeholder="Ask about your day…"
+                      aria-label="Message PACE"
+                      placeholder="Ask PACE about your day…"
                       value={chat}
                       maxLength={1000}
                       onChange={(e) => setChat(e.target.value)}
@@ -1343,7 +1357,7 @@ export default function Home({ ownerId, authMode }: { ownerId: string; authMode:
         }
         description="You can change these anytime. Targets are editable planning values, not medical prescriptions."
       >
-        <AccountSession mode={authMode} />
+        {exploring ? <a href="/login" className="secondary">Sign in to save your progress</a> : <AccountSession mode={authMode} />}
         <ProfileForm
           profile={s.profile}
           busy={busy}
