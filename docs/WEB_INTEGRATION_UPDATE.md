@@ -27,3 +27,11 @@ Live description fixture (rice, tomato dal, paneer) returned three items in 19.9
 ## Meal composer and voice input
 
 Meal entry now uses compact camera/upload choices and a shared text/voice composer. Coach also supports voice-to-text. Dictation uses the browser SpeechRecognition API where available, with explicit speech-service consent, permission/error handling, a one-minute limit and cleanup on unmount. Text is editable and never submitted automatically. Browser speech services may process audio remotely; this is not an on-device guarantee. Unsupported browsers retain typed entry and show guidance. Actual microphone hardware/recognition accuracy is not verified. Type checking, lint and production build passed; no browser visual testing was performed.
+
+## Mobile layout and early progress
+
+Added safe-area-aware mobile bottom navigation, responsive headings/cards, stacked forms, larger touch controls, scrollable viewport-bounded dialogs, focus indicators, skip navigation and reduced-motion-aware section transitions. Existing shadcn controls are retained; no additional animation dependency is required. Subtle section accents distinguish purpose without changing the overall theme.
+
+Progress now starts with a selectable seven-day record: meals, calorie/protein totals, completed/partial training counts and check-in presence. Missing records show a dash rather than a fabricated zero; early users are told that longer-term patterns need more data. Dates use the account timezone. These are recorded totals, not claims of complete daily intake.
+
+Type checking, lint and production build passed. Physical iPhone/Android, keyboard, screen reader and visual viewport testing remain unverified; responsive code is not a guarantee of compatibility with every device.

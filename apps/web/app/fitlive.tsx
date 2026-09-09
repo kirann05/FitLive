@@ -2,6 +2,7 @@
 import { BodyTrend } from "@/components/fitlive/body-trend";
 import type { FoodCandidate } from "@/lib/food-data";
 import { GroceryReview } from "@/components/fitlive/grocery-review";
+import { DailyRecord } from "@/components/fitlive/daily-record";
 import { Dictation } from "@/components/fitlive/dictation";
 import { PhotoMeal } from "@/components/fitlive/photo-meal";
 import { WeeklyReview } from "@/components/fitlive/review";
@@ -414,7 +415,8 @@ export default function Home({ ownerId, authMode }: { ownerId: string; authMode:
   }
   const showSettings = () => setModal("profile");
   return (
-    <main className="shell">
+    <main className="shell" data-section={tab.toLowerCase()}>
+      <a className="skip-link" href="#main-content">Skip to content</a>
       <Toaster position="bottom-right" />
       <header className="topbar">
         <Link className="brand" href="/">
@@ -448,7 +450,7 @@ export default function Home({ ownerId, authMode }: { ownerId: string; authMode:
             </TabsTrigger>
           ))}
         </TabsList>
-        <div className="page">
+        <div className="page" id="main-content">
           {offline && (
             <div className="notice">
               <CloudOff />
@@ -1130,6 +1132,7 @@ export default function Home({ ownerId, authMode }: { ownerId: string; authMode:
                 </Tabs>
               </TabsContent>
               <TabsContent value="Progress">
+                <DailyRecord state={s} />
                 <WeeklyReview state={s} />
                 <BodyTrend state={s} busy={busy} act={act} />
                 <ProgressView state={s} />
