@@ -1,6 +1,13 @@
 "use client";
 import Link from "next/link";
 import {
+  ProgramEditor,
+  MealPlanner,
+  Milestones,
+  ProductPreferences,
+  DevicePairing,
+} from "@/components/fitlive/planning";
+import {
   useCallback,
   useEffect,
   useState,
@@ -138,6 +145,24 @@ function saveFile(name: string, data: string, type = "application/json") {
 }
 export default function Home({ ownerId }: { ownerId: string }) {
   const draftKey = "fitlive-workout-draft:" + ownerId;
+  const [connections, setConnections] = useState({
+    ai: false,
+    food: false,
+    native: false,
+    model: "",
+  });
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/connections")
+      .then(async (r) => {
+        if (r.ok && !cancelled)
+          setConnections((await r.json()) as typeof connections);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [s, setS] = useState<State>(blank),
     [version, setVersion] = useState(0),
     [tab, setTab] = useState("Today"),
@@ -159,9 +184,29 @@ export default function Home({ ownerId }: { ownerId: string }) {
     [selectedFood, setSelectedFood] = useState<Food | null>(null),
     [foodError, setFoodError] = useState(""),
     [pantryEdit, setPantryEdit] = useState<Pantry | null>(null);
+  useEffect(() => {
+    document.documentElement.dataset.theme = s.preferences?.theme ?? "light";
+  }, [s.preferences?.theme]);
   const pending = useRef<{ key: string; id: string; version: number } | null>(
     null,
   );
+  const pendingKey = draftKey + ":pending";
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(pendingKey);
+      if (raw) {
+        const value = JSON.parse(raw);
+        if (
+          typeof value.key === "string" &&
+          typeof value.id === "string" &&
+          Number.isInteger(value.version)
+        )
+          pending.current = value;
+      }
+    } catch {
+      /* A damaged request draft cannot change cloud records. */
+    }
+  }, [pendingKey]);
   const reload = useCallback(async () => {
     try {
       setError("");
@@ -224,6 +269,11 @@ export default function Home({ ownerId }: { ownerId: string }) {
       if (pending.current?.key !== key)
         pending.current = { key, id: crypto.randomUUID(), version };
       const operation = pending.current;
+      try {
+        sessionStorage.setItem(pendingKey, JSON.stringify(operation));
+      } catch {
+        /* Cloud saves still work when tab storage is unavailable. */
+      }
       const r = await fetch("/api/state", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -241,11 +291,17 @@ export default function Home({ ownerId }: { ownerId: string }) {
       if (!r.ok) {
         if (r.status === 409) {
           pending.current = null;
+          try {
+            sessionStorage.removeItem(pendingKey);
+          } catch {}
           await reload();
         }
         throw new Error(d.error);
       }
       pending.current = null;
+      try {
+        sessionStorage.removeItem(pendingKey);
+      } catch {}
       setS(d.state);
       setVersion(d.version);
       if (close) setModal("");
@@ -651,6 +707,7 @@ export default function Home({ ownerId }: { ownerId: string }) {
                 </div>
               </TabsContent>
               <TabsContent value="Train">
+                <ProgramEditor state={s} busy={busy} act={act} />
                 <div className="section-bar">
                   <div className="row">
                     <span className="chip">{s.profile.days} days / week</span>
@@ -882,6 +939,7 @@ export default function Home({ ownerId }: { ownerId: string }) {
                     </button>
                   </div>
                   <TabsContent value="Meals">
+                    <MealPlanner state={s} busy={busy} act={act} />
                     <div className="bottom-grid">
                       <section className="panel">
                         <p className="eyebrow">ON YOUR PLATE</p>
@@ -1064,6 +1122,7 @@ export default function Home({ ownerId }: { ownerId: string }) {
               </TabsContent>
               <TabsContent value="Progress">
                 <ProgressView state={s} />
+                <Milestones state={s} />
                 <section className="panel small-space">
                   <h3>Why your plan changed</h3>
                   <p className="small-space">
@@ -1108,7 +1167,11 @@ export default function Home({ ownerId }: { ownerId: string }) {
                       <MessageCircle />
                       <h3>Your daily coach</h3>
                     </div>
-                    <span className="chip">Rules-based · No AI connected</span>
+                    <span className="chip">
+                      {connections.ai && s.preferences?.aiConsent
+                        ? "AI coach · " + connections.model
+                        : "Rules-based coach"}
+                    </span>
                   </div>
                   <p className="muted small-space">
                     Reads your current state. It cannot diagnose, purchase
@@ -1124,9 +1187,41 @@ export default function Home({ ownerId }: { ownerId: string }) {
                       s.messages.map((m, i) => (
                         <div className={`message ${m.role}`} key={i}>
                           <span className="eyebrow">
-                            {m.role === "user" ? "YOU" : "FITLIVE"}
+                            {m.role === "user"
+                              ? "YOU"
+                              : m.provider === "openai"
+                                ? "FITLIVE · AI"
+                                : "FITLIVE · RULES"}
                           </span>
                           <p>{m.text}</p>
+                          {m.status === "fallback" && (
+                            <small>
+                              AI was unavailable; this answer uses your saved
+                              state and rules.
+                            </small>
+                          )}
+                          {m.tools?.length ? (
+                            <details>
+                              <summary>Context used</summary>
+                              <p className="muted">{m.tools.join(" · ")}</p>
+                            </details>
+                          ) : null}
+                          {m.action && m.action !== "none" && (
+                            <button
+                              className="text-button"
+                              onClick={() =>
+                                setTab(
+                                  m.action === "training"
+                                    ? "Train"
+                                    : m.action === "nutrition"
+                                      ? "Eat"
+                                      : "Today",
+                                )
+                              }
+                            >
+                              Review this action <ArrowRight />
+                            </button>
+                          )}
                         </div>
                       ))
                     )}
@@ -1243,6 +1338,7 @@ export default function Home({ ownerId }: { ownerId: string }) {
             })
           }
         />
+        <ProductPreferences state={s} busy={busy} act={act} />
         <div className="row wrap">
           <button
             className="text-button"
@@ -1501,13 +1597,15 @@ export default function Home({ ownerId }: { ownerId: string }) {
         title="Connections & data sources"
         description="Only active connections are shown as connected."
       >
+        <DevicePairing configured={connections.native} />
         <div className="connection">
           <Heart />
           <div>
             <h3>Apple Health</h3>
             <p>
-              Not connected. Requires the native iPhone companion, device
-              permission and backend setup.
+              {s.health.some((h) => h.source === "HealthKit")
+                ? "Apple Health summaries received. The latest sync time is shown in your recovery details."
+                : "No Apple Health summaries received yet. Pair the iPhone app and grant Health access to sync."}
             </p>
           </div>
         </div>
@@ -1516,8 +1614,9 @@ export default function Home({ ownerId }: { ownerId: string }) {
           <div>
             <h3>USDA FoodData Central</h3>
             <p>
-              Live search requires a server-side API key. Package-label logging
-              works without one.
+              {connections.food
+                ? "Live food search is configured. Confirm dietary details before logging."
+                : "Live search is not configured yet. You can log a confirmed package label."}
             </p>
           </div>
         </div>

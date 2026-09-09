@@ -16,12 +16,30 @@ jobs:
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
       - run: npm run install:ci
+      - run: node ../../scripts/build-policy.mjs
+      - run: git diff --exit-code ../../backend/src/main/resources/engine/domain.js
       - run: npm test
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run build
   java:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: fitlive_test
+          POSTGRES_USER: fitlive_test
+          POSTGRES_PASSWORD: local-disposable-test
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U fitlive_test"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      FITLIVE_POSTGRES_TEST: "true"
+      DATABASE_URL: jdbc:postgresql://localhost:5432/fitlive_test
+      DATABASE_USER: fitlive_test
+      DATABASE_PASSWORD: local-disposable-test
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -30,3 +48,13 @@ jobs:
           java-version: 21
           cache: maven
       - run: mvn -B -f backend/pom.xml test
+  native:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Native data-handling tests
+        run: |
+          xcrun swiftc apps/shared/*.swift tests/native-core.swift -o /tmp/fitlive-native-tests
+          /tmp/fitlive-native-tests
+      - name: iPhone and Watch unsigned build
+        run: xcodebuild -project apps/ios/FitLive.xcodeproj -scheme FitLive -destination 'generic/platform=iOS' -derivedDataPath /tmp/fitlive-native-build CODE_SIGNING_ALLOWED=NO build

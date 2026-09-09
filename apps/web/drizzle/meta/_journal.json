@@ -15,6 +15,13 @@
       "when": 1788925268905,
       "tag": "0001_flaky_morgan_stark",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1788927715602,
+      "tag": "0002_tired_scorpion",
+      "breakpoints": true
     }
   ]
 }

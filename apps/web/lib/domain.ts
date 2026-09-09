@@ -1,4 +1,19 @@
 import { z } from "zod";
+import type { CoachResult } from "./ai/provider";
+import {
+  programSchema,
+  recipeSchema,
+  preferencesSchema,
+  defaults,
+  recipes,
+  foodLibrary,
+  recipeDetails,
+  shoppingNeeds,
+  type Program,
+  type Recipe,
+  type PlannedMeal,
+  type Preferences,
+} from "./planning.ts";
 export type Health = {
   id: string;
   date: string;
@@ -90,8 +105,22 @@ export type State = {
   pantry: Pantry[];
   audit: Audit[];
   grocery: { id: string; name: string; quantity: number; checked: boolean }[];
-  messages: { role: "user" | "assistant"; text: string }[];
+  messages: {
+    role: "user" | "assistant";
+    text: string;
+    provider?: string;
+    model?: string | null;
+    tools?: string[];
+    status?: string;
+    action?: string;
+  }[];
   onboarded: boolean;
+  program?: Program;
+  savedFoods?: Food[];
+  recipes?: Recipe[];
+  mealPlans?: PlannedMeal[];
+  preferences?: Preferences;
+  consentHistory?: { at: string; ai: boolean }[];
 };
 export const foodSchema = z.object({
   id: z.string().max(100),
@@ -108,7 +137,37 @@ export const foodSchema = z.object({
 });
 const num = (min: number, max: number) => z.number().finite().min(min).max(max);
 const text = z.string().max(500);
+const calendarDate = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .refine((value) => {
+    const d = new Date(value + "T12:00:00Z");
+    return (
+      Number.isFinite(d.getTime()) && d.toISOString().slice(0, 10) === value
+    );
+  }, "Use a valid calendar date");
 export const commandSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("program"), program: programSchema }),
+  z.object({ type: z.literal("preferences"), preferences: preferencesSchema }),
+  z.object({ type: z.literal("save-food"), food: foodSchema }),
+  z.object({ type: z.literal("recipe"), recipe: recipeSchema }),
+  z.object({
+    type: z.literal("recipe-rating"),
+    id: z.string(),
+    rating: z.number().int().min(-1).max(1),
+  }),
+  z.object({
+    type: z.literal("plan-meal"),
+    id: z.string(),
+    recipeId: z.string(),
+    date: calendarDate,
+  }),
+  z.object({ type: z.literal("unplan-meal"), id: z.string() }),
+  z.object({
+    type: z.literal("log-recipe"),
+    id: z.string(),
+    deductPantry: z.boolean(),
+  }),
   z.object({
     type: z.literal("profile"),
     profile: z.object({
@@ -134,6 +193,7 @@ export const commandSchema = z.discriminatedUnion("type", [
   }),
   z.object({
     type: z.literal("workout"),
+    date: calendarDate.optional(),
     sets: z
       .array(
         z.object({
@@ -175,7 +235,7 @@ export const commandSchema = z.discriminatedUnion("type", [
       .array(
         z.object({
           id: z.string().min(1).max(120),
-          date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+          date: calendarDate,
           sleep: num(0, 1440),
           rhr: num(20, 250).nullable(),
           hrv: num(0, 500).nullable(),
@@ -230,6 +290,11 @@ export function blank(): State {
     grocery: [],
     messages: [],
     onboarded: false,
+    preferences: defaults(),
+    recipes: [],
+    savedFoods: [],
+    mealPlans: [],
+    consentHistory: [],
   };
 }
 export const foods: Food[] = [
@@ -550,11 +615,65 @@ export function progression(
   };
 }
 export function sessionName(s: State) {
+  if (s.program?.sessions.length)
+    return s.program.sessions[
+      s.workouts.filter((w) => w.status === "completed").length %
+        s.program.sessions.length
+    ].name;
   return ["Legs & core", "Push & shoulders", "Pull & posterior"][
     s.workouts.filter((w) => w.status === "completed").length % 3
   ];
 }
 export function plan(s: State, now = new Date()) {
+  if (s.program?.sessions.length) {
+    const session =
+      s.program.sessions[
+        s.workouts.filter((w) => w.status === "completed").length %
+          s.program.sessions.length
+      ];
+    const recoveryContext = recovery(s, now);
+    return session.exercises.map((x) => {
+      const previous = [...s.workouts]
+        .sort((a, b) => b.date.localeCompare(a.date))
+        .find(
+          (w) =>
+            w.status === "completed" &&
+            w.sets.some((a) => a.exercise === x.name),
+        );
+      const sets = previous?.sets.filter((a) => a.exercise === x.name) ?? [];
+      const lastLoad = sets.length
+        ? Math.max(...sets.map((a) => a.load))
+        : x.load;
+      const advance =
+        sets.length >= x.sets &&
+        sets.every((a) => a.reps >= x.maxReps && a.rpe <= 8);
+      const returning =
+        previous &&
+        now.getTime() - Date.parse(previous.date + "T12:00:00Z") >
+          14 * 86400000;
+      const hard = previous?.effort === "Too hard" || returning;
+      const load = hard
+        ? lastLoad * 0.9
+        : advance
+          ? lastLoad + x.increment
+          : lastLoad;
+      return {
+        name: x.name,
+        muscle: x.muscle,
+        base: x.load,
+        sets: x.sets,
+        reps: `${x.minReps}–${x.maxReps}`,
+        load: Math.round(load * recoveryContext.adjustment * 2) / 2,
+        reason: returning
+          ? "After a break of over two weeks, rebuild with a lighter load."
+          : hard
+            ? "Last session felt too hard; rebuild with a lighter load."
+            : advance
+              ? "Your completed sets earned the configured increment."
+              : "Build toward the top of your chosen rep range.",
+      };
+    });
+  }
   const r = recovery(s, now),
     body = s.profile.equipment === "Bodyweight";
   const rotation =
@@ -640,6 +759,13 @@ export function forecast(s: State, now = new Date()) {
     };
   });
 }
+export function scheduledToday(s: State, now = new Date()) {
+  if (!s.program) return true;
+  const weekday = new Date(
+    dateKey(now, s.profile.timezone) + "T12:00:00Z",
+  ).getUTCDay();
+  return s.program.weekdays.includes(weekday);
+}
 export function recommendation(s: State, now = new Date()) {
   const r = recovery(s, now),
     day = dateKey(now, s.profile.timezone);
@@ -654,26 +780,39 @@ export function recommendation(s: State, now = new Date()) {
           a.feedback && dateKey(new Date(a.at), s.profile.timezone) === day,
       )?.feedback === "rejected";
   return {
-    title: done
-      ? "You put in the work. Now refuel."
-      : rejected
-        ? "Make today a recovery day."
-        : r.band === "Reduced"
-          ? "Keep your rhythm. Ease the intensity."
-          : "A steady day to build on.",
-    action: done
-      ? "Plan your next meal"
-      : rejected
+    title:
+      !done && !scheduledToday(s, now)
+        ? "A planned day to recover."
+        : done
+          ? "You put in the work. Now refuel."
+          : rejected
+            ? "Make today a recovery day."
+            : r.band === "Reduced"
+              ? "Keep your rhythm. Ease the intensity."
+              : "A steady day to build on.",
+    action:
+      !done && !scheduledToday(s, now)
         ? "Review your recovery"
-        : "Review today’s session",
-    target: done ? "Eat" : rejected ? "Today" : "Train",
-    text: done
-      ? `${Math.max(0, Math.round(s.profile.protein - totals(s, day).protein))} g of your protein target remains. Choose a meal that fits your appetite and preferences.`
-      : rejected
-        ? "You chose to skip the recommendation. Your feedback is saved; take a comfortable recovery day."
-        : r.band === "Reduced"
-          ? "Several signals suggest easing the load. Keep today’s leg session controlled, with a little more in reserve."
-          : "Follow the plan at a comfortable effort. Your own readiness matters as much as the numbers.",
+        : done
+          ? "Plan your next meal"
+          : rejected
+            ? "Review your recovery"
+            : "Review today’s session",
+    target: done
+      ? "Eat"
+      : rejected || !scheduledToday(s, now)
+        ? "Today"
+        : "Train",
+    text:
+      !done && !scheduledToday(s, now)
+        ? "Your schedule has a rest day today. Keep movement comfortable; your next session stays ready in Train."
+        : done
+          ? `${Math.max(0, Math.round(s.profile.protein - totals(s, day).protein))} g of your protein target remains. Choose a meal that fits your appetite and preferences.`
+          : rejected
+            ? "You chose to skip the recommendation. Your feedback is saved; take a comfortable recovery day."
+            : r.band === "Reduced"
+              ? "Several signals suggest easing the load. Keep today’s session controlled, with a little more in reserve."
+              : "Follow the plan at a comfortable effort. Your own readiness matters as much as the numbers.",
     ...r,
   };
 }
@@ -701,6 +840,7 @@ export function apply(
   id: string,
   version: number,
   now = new Date(),
+  generated?: CoachResult,
 ): State {
   const c = commandSchema.parse(input);
   if (c.type === "delete") return blank();
@@ -708,6 +848,87 @@ export function apply(
   const s = structuredClone(state),
     day = dateKey(now, s.profile.timezone);
   switch (c.type) {
+    case "program":
+      s.program = c.program;
+      s.profile.days = new Set(c.program.weekdays).size;
+      break;
+    case "preferences":
+      s.preferences = c.preferences;
+      s.consentHistory = [
+        ...(s.consentHistory ?? []),
+        { at: now.toISOString(), ai: c.preferences.aiConsent },
+      ];
+      break;
+    case "save-food":
+      if (!allowed(c.food, s.profile))
+        throw new Error("This food conflicts with your dietary restrictions.");
+      s.savedFoods = [
+        ...(s.savedFoods ?? []).filter((f) => f.id !== c.food.id),
+        c.food,
+      ];
+      break;
+    case "recipe": {
+      const library = foodLibrary(s);
+      if (
+        !c.recipe.items.every((i) =>
+          library.some((f) => f.id === i.foodId && allowed(f, s.profile)),
+        )
+      )
+        throw new Error(
+          "Recipe conflicts with your dietary restrictions or contains an unavailable food.",
+        );
+      s.recipes = [...recipes(s).filter((r) => r.id !== c.recipe.id), c.recipe];
+      break;
+    }
+    case "recipe-rating":
+      s.recipes = recipes(s).map((r) =>
+        r.id === c.id ? { ...r, rating: c.rating } : r,
+      );
+      break;
+    case "plan-meal": {
+      const recipe = recipes(s).find((r) => r.id === c.recipeId);
+      if (!recipe || !recipeDetails(s, recipe).valid)
+        throw new Error("Recipe conflicts with your dietary restrictions.");
+      s.mealPlans = [
+        ...(s.mealPlans ?? []).filter((p) => p.id !== c.id),
+        { id: c.id, date: c.date, recipeId: c.recipeId },
+      ];
+      break;
+    }
+    case "unplan-meal":
+      s.mealPlans = (s.mealPlans ?? []).filter((p) => p.id !== c.id);
+      break;
+    case "log-recipe": {
+      const recipe = recipes(s).find((r) => r.id === c.id);
+      if (!recipe) throw new Error("Recipe not found.");
+      const details = recipeDetails(s, recipe);
+      if (!details.valid)
+        throw new Error("Recipe conflicts with dietary restrictions.");
+      for (const [i, item] of details.items.entries()) {
+        const food = item.food!;
+        if (s.mode === "real" && food.source.startsWith("Demo"))
+          throw new Error("Use a verified food record.");
+        const pantry = s.pantry.find(
+          (p) =>
+            p.unit === "g" && p.name.toLowerCase() === food.name.toLowerCase(),
+        );
+        if (c.deductPantry) {
+          if (!pantry || pantry.quantity < item.grams)
+            throw new Error("Confirm sufficient pantry quantity first.");
+          pantry.quantity -= item.grams;
+          pantry.confidence = "medium";
+        }
+        s.meals.push({
+          id: id + ":" + i,
+          date: day,
+          food,
+          grams: item.grams,
+          ...(c.deductPantry ? { pantryId: pantry!.id } : {}),
+        });
+      }
+      break;
+    }
+
     case "profile":
       new Intl.DateTimeFormat("en", { timeZone: c.profile.timezone });
       s.profile = c.profile;
@@ -718,9 +939,11 @@ export function apply(
       s.checkins.push({ date: day, ...c });
       break;
     case "workout":
+      if (c.date && c.date > day)
+        throw new Error("Workout date cannot be in the future.");
       s.workouts.push({
         id,
-        date: day,
+        date: c.date ?? day,
         sets: c.sets,
         effort: c.effort,
         status: c.status,
@@ -802,6 +1025,13 @@ export function apply(
           quantity: p.unit === "g" ? 500 : 1,
           checked: false,
         }));
+      for (const need of shoppingNeeds(s, day)) {
+        const item = s.grocery.find(
+          (g) => g.name.toLowerCase() === need.name.toLowerCase(),
+        );
+        if (item) item.quantity = Math.max(item.quantity, need.quantity);
+        else s.grocery.push(need);
+      }
       break;
     case "grocery-check": {
       const item = s.grocery.find((x) => x.id === c.id);
@@ -812,7 +1042,19 @@ export function apply(
     case "chat":
       s.messages.push(
         { role: "user", text: c.message },
-        { role: "assistant", text: coach(s, c.message, now) },
+        {
+          role: "assistant",
+          text: generated?.text ?? coach(s, c.message, now),
+          ...(generated
+            ? {
+                provider: generated.provider,
+                model: generated.model,
+                tools: generated.tools,
+                status: generated.status,
+                action: generated.action,
+              }
+            : { provider: "rules" }),
+        },
       );
       break;
   }
@@ -827,5 +1069,134 @@ export function apply(
       confidence: r.confidence,
     });
   }
+  return s;
+}
+
+/** Validate a trusted account transfer before changing storage providers. */
+export function validateSnapshot(value: unknown): State {
+  const s = z
+    .object({
+      mode: z.enum(["demo", "real"]),
+      profile: z.object({
+        name: z.string(),
+        diet: z.enum(["omnivore", "vegetarian", "vegan"]),
+        allergies: z.array(z.string()),
+        dislikes: z.array(z.string()),
+        goal: z.string(),
+        days: num(1, 7),
+        equipment: z.string(),
+        protein: num(20, 300),
+        calories: num(1200, 5000),
+        timezone: z.string(),
+        consent: z.boolean(),
+      }),
+      health: z.array(
+        z.object({
+          id: z.string(),
+          date: calendarDate,
+          sleep: num(0, 1440),
+          rhr: num(20, 250).nullable(),
+          hrv: num(0, 500).nullable(),
+          source: z.enum(["demo", "manual", "HealthKit"]),
+          sampleAt: z.string().datetime(),
+          syncAt: z.string().datetime(),
+        }),
+      ),
+      checkins: z.array(
+        z.object({
+          date: calendarDate,
+          energy: num(1, 5),
+          soreness: num(1, 5),
+          motivation: num(1, 5),
+          note: z.string(),
+        }),
+      ),
+      workouts: z.array(
+        z.object({
+          id: z.string(),
+          date: calendarDate,
+          sets: z.array(
+            z.object({
+              exercise: z.string(),
+              muscle: z.string(),
+              reps: num(1, 100),
+              load: num(0, 500),
+              rpe: num(1, 10),
+            }),
+          ),
+          effort: z.string(),
+          status: z.enum(["completed", "partial"]),
+        }),
+      ),
+      meals: z.array(
+        z.object({
+          id: z.string(),
+          date: calendarDate,
+          food: foodSchema,
+          grams: num(1, 2000),
+          pantryId: z.string().optional(),
+        }),
+      ),
+      pantry: z.array(
+        z.object({
+          id: z.string(),
+          name: z.string(),
+          quantity: num(0, 100000),
+          unit: z.string(),
+          confirmed: z.string(),
+          confidence: z.enum(["high", "medium", "low"]),
+        }),
+      ),
+      audit: z.array(
+        z.object({
+          id: z.string(),
+          at: z.string().datetime(),
+          version: z.number(),
+          rules: z.array(z.string()),
+          text: z.string(),
+          confidence: z.string(),
+          feedback: z.string().optional(),
+          note: z.string().optional(),
+        }),
+      ),
+      grocery: z.array(
+        z.object({
+          id: z.string(),
+          name: z.string(),
+          quantity: z.number(),
+          checked: z.boolean(),
+        }),
+      ),
+      messages: z.array(
+        z.object({
+          role: z.enum(["user", "assistant"]),
+          text: z.string(),
+          provider: z.string().optional(),
+          model: z.string().nullable().optional(),
+          tools: z.array(z.string()).optional(),
+          status: z.string().optional(),
+          action: z.string().optional(),
+        }),
+      ),
+      onboarded: z.boolean(),
+      program: programSchema.optional(),
+      savedFoods: z.array(foodSchema).optional(),
+      recipes: z.array(recipeSchema).optional(),
+      mealPlans: z
+        .array(
+          z.object({
+            id: z.string(),
+            date: calendarDate,
+            recipeId: z.string(),
+          }),
+        )
+        .optional(),
+      preferences: preferencesSchema.optional(),
+      consentHistory: z
+        .array(z.object({ at: z.string(), ai: z.boolean() }))
+        .optional(),
+    })
+    .parse(value);
+  dateKey(new Date(), s.profile.timezone);
   return s;
 }

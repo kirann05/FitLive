@@ -1,3 +1,4 @@
+import { javaBackend, javaRequest } from "@/lib/java-backend";
 import { db, owner } from "@/lib/storage";
 export const dynamic = "force-dynamic";
 export async function POST(req: Request) {
@@ -5,6 +6,13 @@ export async function POST(req: Request) {
   if (!u) return Response.json({ error: "Sign in required." }, { status: 401 });
   if (req.headers.get("origin") !== new URL(req.url).origin)
     return Response.json({ error: "Invalid origin." }, { status: 403 });
+  if (javaBackend()) {
+    const result = (await javaRequest(u, "/api/devices", "POST", {})) as object;
+    return Response.json(
+      { ...result, endpoint: javaBackend()!.url },
+      { headers: { "Cache-Control": "no-store" } },
+    );
+  }
   const token = crypto.randomUUID() + crypto.randomUUID();
   const hash = Array.from(
     new Uint8Array(
@@ -34,6 +42,9 @@ export async function DELETE(req: Request) {
   if (!u) return Response.json({ error: "Sign in required." }, { status: 401 });
   if (req.headers.get("origin") !== new URL(req.url).origin)
     return Response.json({ error: "Invalid origin." }, { status: 403 });
+  if (javaBackend()) {
+    return Response.json(await javaRequest(u, "/api/devices", "DELETE"));
+  }
   await db().prepare("DELETE FROM device_tokens WHERE owner=?").bind(u).run();
   return Response.json({ revoked: true });
 }

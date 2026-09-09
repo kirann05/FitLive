@@ -962,3 +962,150 @@ footer .text-button {
     margin-left: 32px;
   }
 }
+.program-dialog {
+  max-width: min(760px, calc(100vw - 32px)) !important;
+}
+.weekday-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin: 18px 0 28px;
+}
+.weekday-picker label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+}
+.program-exercise {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+  margin: 16px 0;
+}
+.prescription-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+}
+.recipe-grid,
+.achievement-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  margin-top: 22px;
+}
+.recipe-card {
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--background);
+}
+.recipe-card h3 {
+  margin: 12px 0;
+}
+.recipe-card .chip {
+  margin-top: 16px;
+}
+.recipe-item {
+  display: grid;
+  grid-template-columns: 2fr 1fr auto;
+  gap: 14px;
+  align-items: center;
+}
+.achievement {
+  border: 1px solid var(--border);
+  padding: 20px;
+  border-radius: 12px;
+}
+.achievement > span {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.achievement h3 {
+  font-size: 16px;
+  margin: 8px 0;
+}
+.achievement p {
+  font-size: 14px;
+}
+.earned {
+  background: var(--accent);
+}
+:root[data-theme="dark"] {
+  --background: #111b24;
+  --foreground: #e9eff4;
+  --primary: #557c94;
+  --primary-foreground: #fff;
+  --muted: #253542;
+  --muted-foreground: #b1c0cc;
+  --border: #344654;
+  --input: #344654;
+  --ring: #96bbd4;
+  --accent: #273c4b;
+  --accent-foreground: #e9eff4;
+  --card: #1a2935;
+  --card-foreground: #e9eff4;
+  --popover: #1a2935;
+  --popover-foreground: #e9eff4;
+}
+:root[data-theme="dark"] .next-action,
+:root[data-theme="dark"] .soft,
+:root[data-theme="dark"] .welcome {
+  background: #233c4d;
+}
+:root[data-theme="dark"] .chip,
+:root[data-theme="dark"] .avatar,
+:root[data-theme="dark"] .exercise-number,
+:root[data-theme="dark"] .food-icon,
+:root[data-theme="dark"] .message {
+  background: #2b4253;
+  color: #d0e1ed;
+  border-color: #3c586b;
+}
+:root[data-theme="dark"] .amber {
+  background: #4b402a;
+  color: #f0d9a6;
+  border-color: #685739;
+}
+:root[data-theme="dark"] .eyebrow {
+  color: #a9c4d5;
+}
+:root[data-theme="dark"] .navigation button[data-state="active"] {
+  background: #294558 !important;
+  color: #e4f2fa !important;
+}
+:root[data-theme="dark"] .bar-track {
+  background: #253a49;
+}
+:root[data-theme="dark"] .field input,
+:root[data-theme="dark"] .field select,
+:root[data-theme="dark"] .field textarea {
+  border-color: #496171;
+}
+:root[data-theme="dark"] .message.user {
+  background: #314d60;
+}
+:root[data-theme="dark"] .secondary {
+  border-color: #496171;
+}
+:root[data-theme="dark"] .notice {
+  color: #ede3cb;
+  background: #423c2d;
+}
+:root[data-theme="dark"] .error {
+  background: #492d2a;
+  color: #ffe2de;
+}
+@media (max-width: 600px) {
+  .recipe-grid,
+  .achievement-grid {
+    grid-template-columns: 1fr;
+  }
+  .prescription-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .recipe-item {
+    grid-template-columns: 1.7fr 1fr auto;
+  }
+}

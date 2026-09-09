@@ -1,5 +1,7 @@
+import { javaBackend, javaRequest } from "./java-backend";
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "@/app/chatgpt-auth";
+import { generateCoach } from "./ai/runtime";
 import { apply, blank, type State } from "./domain";
 export const db = () => {
   const d = (env as unknown as { DB?: D1Database }).DB;
@@ -11,6 +13,24 @@ export async function owner() {
   return u?.userId ?? null;
 }
 export async function load(user: string) {
+  if (javaBackend()) {
+    const current = (await javaRequest(user, "/api/state")) as {
+      version: number;
+      state: State;
+    };
+    if (current.version === 0) {
+      const legacy = await db()
+        .prepare("SELECT version,data FROM accounts WHERE owner=?")
+        .bind(user)
+        .first<{ version: number; data: string }>();
+      if (legacy)
+        return (await javaRequest(user, "/api/bootstrap", "POST", {
+          version: legacy.version,
+          state: JSON.parse(legacy.data),
+        })) as { version: number; state: State };
+    }
+    return current;
+  }
   const row = await db()
     .prepare("SELECT version,data FROM accounts WHERE owner=?")
     .bind(user)
@@ -25,6 +45,38 @@ export async function mutate(
   id: string,
   version: number,
 ) {
+  if (javaBackend()) {
+    const snapshot = await load(user);
+    const c = command as { type?: string; message?: string };
+    const generated =
+      c.type === "chat" && c.message
+        ? await generateCoach(snapshot.state, c.message)
+        : undefined;
+    const result = (await javaRequest(user, "/api/state", "POST", {
+      id,
+      version,
+      command,
+      generated,
+    })) as { version: number; state: State };
+    if (c.type === "delete") {
+      await db().batch([
+        db()
+          .prepare(
+            "UPDATE accounts SET data=?,version=?,last_operation=?,updated_at=? WHERE owner=?",
+          )
+          .bind(
+            JSON.stringify(result.state),
+            result.version,
+            id,
+            new Date().toISOString(),
+            user,
+          ),
+        db().prepare("DELETE FROM device_tokens WHERE owner=?").bind(user),
+        db().prepare("DELETE FROM operations WHERE owner=?").bind(user),
+      ]);
+    }
+    return result;
+  }
   const d = db();
   const existing = await d
     .prepare("SELECT id FROM operations WHERE owner=? AND id=?")
@@ -33,7 +85,21 @@ export async function mutate(
   if (existing) return load(user);
   const snapshot = await load(user);
   if (snapshot.version !== version) throw new Error("CONFLICT");
-  const next = apply(snapshot.state, command, id, version);
+  const chat = command as { type?: string; message?: string };
+  const generated =
+    chat.type === "chat" && typeof chat.message === "string"
+      ? await generateCoach(snapshot.state, chat.message)
+      : undefined;
+  const next = apply(
+    snapshot.state,
+    command,
+    id,
+    version,
+    new Date(),
+    generated,
+  );
+  if (JSON.stringify(next).length > 2000000)
+    throw new Error("Account storage limit reached; export older records.");
   const now = new Date().toISOString();
   const results = await d.batch([
     d

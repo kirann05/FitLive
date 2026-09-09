@@ -12,7 +12,7 @@ public class HealthController {
  private final HealthService service;
  public HealthController(HealthService service){this.service=service;}
  public record Batch(@NotNull @Size(min=1,max=100) List<@Valid HealthSummary> samples){}
- @PostMapping("/sync") public Map<String,Object> sync(@AuthenticationPrincipal Jwt jwt,@Valid @RequestBody Batch batch)throws Exception{return Map.of("saved",true,"newSamples",service.ingest(jwt.getSubject(),batch.samples()));}
- @GetMapping("/export") public List<Map<String,Object>> export(@AuthenticationPrincipal Jwt jwt){return service.list(jwt.getSubject());}
- @DeleteMapping public Map<String,Boolean> delete(@AuthenticationPrincipal Jwt jwt){service.delete(jwt.getSubject());return Map.of("deleted",true);}
+ @PostMapping("/sync") public Map<String,Object> sync(org.springframework.security.core.Authentication jwt,@Valid @RequestBody Batch batch)throws Exception{return Map.of("saved",true,"newSamples",service.ingest(jwt.getName(),batch.samples()));}
+ @GetMapping("/export") public List<Map<String,Object>> export(org.springframework.security.core.Authentication jwt){return service.list(jwt.getName());}
+ @DeleteMapping public Map<String,Boolean> delete(org.springframework.security.core.Authentication jwt){service.delete(jwt.getName());return Map.of("deleted",true);}
 }

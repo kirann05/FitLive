@@ -20,7 +20,8 @@ services:
       DATABASE_URL: jdbc:postgresql://db:5432/fitlive
       DATABASE_USER: fitlive
       DATABASE_PASSWORD: ${DATABASE_PASSWORD:?Set DATABASE_PASSWORD}
-      OIDC_ISSUER: ${OIDC_ISSUER:?Set your OIDC issuer}
+      OIDC_ISSUER: ${OIDC_ISSUER:-}
+      FITLIVE_BRIDGE_SECRET: ${FITLIVE_BRIDGE_SECRET:?Set a random secret of at least 32 characters}
       OIDC_AUDIENCE: ${OIDC_AUDIENCE:-fitlive}
     depends_on:
       db:

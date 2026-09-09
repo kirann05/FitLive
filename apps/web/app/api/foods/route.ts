@@ -1,8 +1,18 @@
+import { limit } from "@/lib/limits";
 import { env } from "cloudflare:workers";
 import { owner } from "@/lib/storage";
 export async function GET(req: Request) {
-  if (!(await owner()))
+  const user = await owner();
+  if (!user)
     return Response.json({ error: "Sign in required." }, { status: 401 });
+  try {
+    await limit(user, "food-search", 30);
+  } catch {
+    return Response.json(
+      { error: "Food search limit reached. Please retry in a minute." },
+      { status: 429 },
+    );
+  }
   const q = new URL(req.url).searchParams.get("q")?.trim();
   if (!q || q.length > 100)
     return Response.json({ error: "Enter a food name." }, { status: 400 });

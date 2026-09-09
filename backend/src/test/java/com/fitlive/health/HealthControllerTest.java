@@ -15,7 +15,7 @@ import static org.mockito.Mockito.*;
 @WebMvcTest(controllers=HealthController.class, properties={"spring.security.oauth2.resourceserver.jwt.issuer-uri=https://issuer.example.test", "spring.datasource.password=test"})
 @Import(SecurityConfiguration.class)
 class HealthControllerTest {
- @Autowired MockMvc mvc; @MockitoBean HealthService service; @MockitoBean JwtDecoder decoder;
+ @Autowired MockMvc mvc; @MockitoBean HealthService service; @MockitoBean JwtDecoder decoder; @MockitoBean com.fitlive.security.DeviceAuthService devices;
  @Test void anonymousCannotRead()throws Exception{mvc.perform(get("/api/health/export")).andExpect(status().isUnauthorized());verifyNoInteractions(service);}
  @Test void ownerComesFromVerifiedIdentity()throws Exception{when(service.list("alice")).thenReturn(List.of());mvc.perform(get("/api/health/export").param("owner","bob").with(jwt().jwt(j->j.subject("alice")))).andExpect(status().isOk());verify(service).list("alice");verify(service,never()).list("bob");}
  @Test void emptyHealthBatchIsRejected()throws Exception{mvc.perform(post("/api/health/sync").with(jwt()).contentType("application/json").content("{\"samples\":[]}")).andExpect(status().isBadRequest());verifyNoInteractions(service);}

@@ -3,12 +3,6 @@ spring:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/fitlive}
     username: ${DATABASE_USER:fitlive}
     password: ${DATABASE_PASSWORD}
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: ${OIDC_ISSUER}
-          audiences: ${OIDC_AUDIENCE:fitlive}
   flyway:
     enabled: true
 server:
@@ -24,3 +18,6 @@ management:
     health:
       probes:
         enabled: true
+
+fitlive:
+  bridge-secret: ${FITLIVE_BRIDGE_SECRET:}

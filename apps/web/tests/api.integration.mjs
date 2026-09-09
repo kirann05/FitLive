@@ -109,9 +109,32 @@ assert.equal(
   (await request("/api/health/sync", { samples: [] }, false)).status,
   401,
 );
+const beforeDelete = current.version,
+  deletion = crypto.randomUUID();
 assert.equal(
-  (await command({ type: "delete", confirmation: "DELETE" })).status,
+  (
+    await command(
+      { type: "delete", confirmation: "DELETE" },
+      deletion,
+      beforeDelete,
+    )
+  ).status,
   200,
+);
+assert.equal(
+  (
+    await command(
+      { type: "delete", confirmation: "DELETE" },
+      deletion,
+      beforeDelete,
+    )
+  ).status,
+  200,
+);
+assert.equal(
+  (await command(cmd, id, version)).status,
+  409,
+  "pre-deletion saves cannot resurrect data",
 );
 assert.equal(current.state.workouts.length, 0);
 assert.equal(current.state.meals.length, 0);

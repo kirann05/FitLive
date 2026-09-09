@@ -26,3 +26,5 @@ export const deviceTokens = sqliteTable("device_tokens", {
   owner: text("owner").notNull(),
   expires: text("expires").notNull(),
 });
+
+export const rateLimits=sqliteTable('rate_limits',{owner:text('owner').notNull(),bucket:text('bucket').notNull(),count:integer('count').notNull(),expires:integer('expires').notNull()},t=>[primaryKey({columns:[t.owner,t.bucket]})]);
