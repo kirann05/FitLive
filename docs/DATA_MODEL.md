@@ -1,17 +1,15 @@
 # Data model
 
-## Hosted web
+Both stores persist an owner-scoped, bounded account JSON document and monotonically increasing version. State includes profile, health, check-ins, workouts/sets, source-attributed meals, pantry, grocery list, recommendation audit, messages, custom program, confirmed food library, recipes, planned meals, preferences and consent history.
 
-- `accounts`: verified owner key, optimistic version, serialized domain state, latest operation ID, update timestamp.
-- `operations`: composite owner/request ID for replay suppression, creation timestamp.
-- `device_tokens`: hashed token, owner and expiry. Native transport through the private gateway remains a release gate.
+D1 tables: `accounts`, `operations`, `device_tokens`, `rate_limits`. Migrations in `apps/web/drizzle` are append-only after publication.
 
-The state contains profile/consent, health summaries, daily check-ins, completed/partial workouts and sets, meals with nutrient provenance, pantry estimates, shopping items, coach messages and recommendation audit entries.
+PostgreSQL tables: `accounts`, `operations`, `device_tokens`, `request_limits`, plus the independent raw `health_samples` ingestion table. Flyway migrations are in `backend/src/main/resources/db/migration`.
 
-Mutation is a compare-and-swap update plus operation insertion in one D1 batch. Concurrent stale writes receive 409. Retrying an already applied operation returns the current snapshot. The client retains an operation key after network failure.
+`operations` suppresses repeated owner/request IDs. The web retains an operation after uncertain network failure; native stores it in a protected pending file. A failed compare-and-swap returns 409. Deletion keeps a blank version tombstone so delayed pre-deletion writes cannot recreate private records.
 
-The MVP stores account state as one JSON document. This simplifies transactional consistency but is not intended for unlimited longitudinal volume. Normalize high-volume records and implement bounded history retention before large-scale beta. No performance benchmark is claimed.
+`device_tokens` stores SHA-256 hashes and expiry. Creating a token revokes the previous one. The bridge owner is prefixed `platform:` in Java; native tokens resolve to that exact owner. Optional OIDC subjects are a separate identity path unless explicitly linked by a future migration.
 
-## Java
+The bridge-only bootstrap validates the full snapshot and inserts only when the destination account does not exist. It preserves the version, preventing old lower-version commands from being accepted. It does not overwrite a nonempty destination or silently resolve conflicts between independently populated accounts.
 
-`health_samples`: owner, source ID, day, canonical JSON summary and received timestamp. Owner/source ID is unique. Conflicting replays return 409; identical replays do not insert. Every query scopes to the verified JWT subject.
+Account data is limited to 2 MB. Operation history and rate metadata need a deliberate retention/compaction policy for a large-scale rollout. Do not prune replay records independently of version/tombstone semantics.

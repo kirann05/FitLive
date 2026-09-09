@@ -4,6 +4,8 @@
 
 FitLive connects sleep and readiness, strength training, meals, pantry stock and feedback into a calm daily planning experience. The interface uses light blue surfaces, restrained typography, and one primary action.
 
+[Open the private FitLive web app](https://fitlive.kiranloginin.chatgpt.site)
+
 ## What you can use now
 
 The hosted web edition supports:
@@ -17,19 +19,21 @@ The hosted web edition supports:
 - Pantry estimates, matched food deductions, low-stock shopping lists and text export.
 - Weekly training/nutrition/sleep summaries and a recommendation audit trail.
 - A clearly labeled rules-based coach, without pretending an AI provider is connected.
+- Custom programs/weekday schedules, recipes and meal planning, personal records and achievements.
+- Optional dark appearance and explicitly consented AI explanations when configured.
 - Data export and deletion.
 - Explicit demo mode with sample health and nutrient fixtures.
 
-**This is a usable web MVP, not completion of every item in the master specification.** Native integration and generative AI are explicit release gates below.
+**The complete product is still in release verification.** The web is usable; AWS deployment, live providers and native hardware checks remain explicit gates in [release status](docs/RELEASE_STATUS.md).
 
 ## Repository map
 
 | Path | Purpose |
 | --- | --- |
 | `apps/web` | Hosted React/TypeScript application, cloud API, deterministic engines, migrations and tests |
-| `backend` | Java 21 / Spring Boot health-ingestion service with OAuth JWT ownership and PostgreSQL migrations |
-| `apps/ios` | SwiftUI HealthKit companion source and XcodeGen project specification |
-| `apps/watch` | Explicitly local Watch set-counter source; cloud sync is unfinished |
+| `backend` | Java 21 / Spring Boot shared account API, signed web bridge, native tokens and PostgreSQL |
+| `apps/ios` | Five-section SwiftUI app, HealthKit sync, protected offline saves and combined Xcode project |
+| `apps/watch` | Watch workout queue with phone review and server-save acknowledgment; hardware tests pending |
 | `docs` | Architecture, decisions, privacy, API contract, validation, demo and release gaps |
 | `.github/workflows` | Web checks and Java authorization tests |
 
@@ -54,17 +58,17 @@ npm run lint
 npm run build
 ```
 
-## Independent Java health service
+## Java/PostgreSQL account backend
 
-Requires Docker Compose and an OAuth/OIDC issuer you control.
+Requires Docker Compose. OIDC is optional; the web bridge and native pairing use their own scoped authentication.
 
 ```sh
 cp .env.example .env
-# Fill DATABASE_PASSWORD, OIDC_ISSUER and OIDC_AUDIENCE.
+# Fill DATABASE_PASSWORD and FITLIVE_BRIDGE_SECRET.
 docker compose up --build
 ```
 
-The backend is bound to localhost by default. Deploy behind HTTPS for a device. It is a health-ingestion service, **not a second complete implementation of the web API**, and its PostgreSQL store is not automatically linked to the hosted web store.
+The backend is bound to localhost by default. Deploy behind HTTPS for a device. Configure the same bridge secret and `JAVA_API_URL` in hosted runtime settings to link the web. Existing D1 data is transferred only into an absent Java account. See [architecture](docs/ARCHITECTURE.md) before cutover or rollback.
 
 ```sh
 cd backend
@@ -73,17 +77,17 @@ mvn test
 
 ## iPhone / Watch
 
-See [native setup and verification gates](docs/NATIVE_SETUP.md). Full Xcode, signing, HealthKit entitlement and a physical device are required. No native binaries are claimed to have been built or device-tested in this delivery.
+See [native setup and verification gates](docs/NATIVE_SETUP.md). Full Xcode, signing, HealthKit entitlement and a physical device are required. iPhone and Watch source pass Apple SDK checks. The combined app still needs installed platforms, signing and real device verification.
 
 ## External services
 
 - USDA: configure `USDA_API_KEY` as a server-side hosted secret. Food lookup fails clearly if unavailable; package-label logging still works.
-- Generative AI: not connected. The coach is rules-based and states that clearly.
+- Generative AI: adapter and mocked contract tests exist. Configure server-held `OPENAI_API_KEY` and explicitly opt in before live use. Without a configured key/consent, the coach uses deterministic guidance.
 - Groceries: shopping lists only. There is no purchasing endpoint and no automatic spending.
-- Apple Health: native implementation source exists; device-to-hosted-account transport and real-data verification remain unfinished.
+- Apple Health: native shared-account transport is implemented; deployed end-to-end and real-data verification remain unfinished.
 
 ## Limits that matter
 
 Recovery is a conservative planning heuristic, not a validated medical score. Food values are as reliable as the selected source and confirmed portion. Unknown or incorrectly entered allergens cannot be inferred reliably; check labels. Demo data is never represented as real measurements.
 
-The requested Java/PostgreSQL architecture remains an independent deployment path. The hosted web uses a TypeScript Worker and D1 because the hosting platform cannot execute Java. This is recorded in [ADR-002](docs/DECISIONS.md).
+The hosted Worker can delegate account storage to Java/PostgreSQL. Its standalone mode uses D1 because Sites cannot execute Java. This is recorded in [ADR-002](docs/DECISIONS.md).

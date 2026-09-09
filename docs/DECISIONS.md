@@ -27,3 +27,15 @@
 - Reason: Missing provider credentials must not cause fabricated results or unauthorized purchases.
 - Trade-off: Live food search and generative conversation require provider setup.
 - Date: 2026-09-08.
+
+## ADR-005 — One policy implementation across runtimes
+- Decision: Bundle the TypeScript policy with esbuild and execute it in restricted GraalJS in Java. Keep the generated resource committed and parity-checked in CI.
+- Reason: Native and web load/protein/recovery calculations must not diverge across hand-maintained implementations.
+- Trade-off: Graal adds memory/startup cost; contexts are isolated per invocation. Benchmark under deployment load before scaling.
+- Date: 2026-09-09.
+
+## ADR-006 — Signed bridge and account transfer
+- Decision: Platform identity is asserted only by the hosted server using an HMAC-protected request. Native pairing creates an expiring token for that exact Java owner. The browser never receives the bridge secret.
+- Reason: A private Sites gateway is not an iPhone API credential. An independently hosted HTTPS Java API provides an authenticated mobile transport.
+- Trade-off: Backend cutover needs a validated bootstrap and careful legacy-store retirement; switching a configuration value back is not a data rollback.
+- Date: 2026-09-09.

@@ -1,32 +1,25 @@
 # Release status
 
-## Delivered web MVP
+FitLive has a working hosted web application and a tested Java/PostgreSQL account backend. The entire master specification is **not yet production-complete**. This page separates implementation from external verification.
 
-The working hosted loop is: saved manual/demo health → deterministic recovery → training plan → completed workout → progression and daily next action → confirmed food → pantry deduction → shopping list → feedback audit.
+## Implemented
 
-The cloud store uses owner-scoped application state, optimistic concurrency, atomic operation recording and idempotency keys. Demo and real modes are visibly labeled. Switching modes replaces the current dataset only after confirmation; export first. They are not two concurrently retained accounts.
+- Private web account, real/demo modes, recovery context, check-ins, workout logging and progression, food-label logging, pantry accounting, groceries, progress and feedback audit.
+- Custom programs and weekday schedules, planned rest days, configurable rep ranges/increments, recipes, dietary filtering, meal planning, pantry-aware shopping, achievements and personal records.
+- Light default theme and optional dark theme.
+- Optional OpenAI Responses adapter with explicit consent, read-only tools, validated structured answers, bounded calls, no provider storage request, and deterministic fallback. No live provider key is configured yet.
+- Java/PostgreSQL account API running the same generated policy implementation as the web; signed web bridge, expiring/revocable device credentials, guarded account transfer, transactional replay protection and deletion tombstones.
+- Request size/account size bounds and owner-scoped mutation/coach rate limits.
+- SwiftUI Today, Train, Eat, Progress and Coach screens; Keychain credentials, protected pending saves and workout drafts; HealthKit summary upload to the shared account.
+- Watch workout draft, durable outgoing queue, paired-account binding, phone review, and acknowledgment only after an account save. Source passes the watchOS SDK check; hardware delivery is unverified.
 
-## Still unfinished — do not represent as shipped
+## Required before calling the product production-ready
 
-- Full native iOS product screens and production onboarding/authentication.
-- Device-to-hosted-account HealthKit transport through the private access gateway.
-- Real iPhone/Watch compile, signing and device testing; full Xcode is absent here.
-- Background/anchored HealthKit sync, deletion reconciliation, source prioritization, activity/weight ingestion.
-- WatchConnectivity and durable synced Watch workout logging.
-- Complete Java parity with web training/nutrition/coach APIs and deployment of that service.
-- Live generative AI, typed model tool orchestration, model routing, photo/text food parsing.
-- USDA live integration verification with an owner-provided key.
-- Full custom workout-program builder, scheduling by weekday, substitutions, PRs and achievements.
-- Multi-day meal planning, recipes, receipt/barcode ingestion and grocery pricing/cart approval.
-- Dark theme, push notifications and background reminders.
-- Browser interaction/visual QA, native accessibility review and external security review.
-- Measured production latency, reliability, AI accuracy, clinical validation or retention claims.
+1. AWS sign-in and account eligibility/credit/budget verification; deploy Java and private PostgreSQL, configure HTTPS and bridge secrets, then verify hosted web ↔ Java ↔ iPhone with the same account.
+2. Finish Xcode iOS/watchOS platform downloads, signing team and device setup. Build/install the combined application and test pairing, offline retries, reinstall/account switching, accessibility and Health permissions on real hardware.
+3. Compare HealthKit summaries with device records, handle source disagreement, background anchored sync and deleted records. Current sync is foreground and summarizes sleep/RHR/HRV only.
+4. Configure USDA/OpenAI secrets and execute live provider checks, adversarial evaluations and failure recovery. Mocked contracts do not establish real model accuracy.
+5. Complete native/web feature parity: custom program and recipe editing currently live on the web; native food logging is label-based, native coach is deterministic. Notifications, food photo/barcode/receipt parsing and approved external grocery-cart integration remain unimplemented.
+6. Run requested browser interaction/visual QA, native accessibility review, restore drills, load/latency testing and a security review before a broader release.
 
-## Release gates
-
-1. Owner supplies deployment/identity configuration for the Java/native path.
-2. Build/sign native applications with full Xcode and test on real devices.
-3. Establish authenticated native-to-web account linking before claiming Apple Health is connected.
-4. Configure and verify USDA; implement generative provider only with explicit data consent.
-5. Complete remaining P0 native/AI requirements and cross-platform parity.
-6. Exercise the full public-demo definition of done on real data before calling the entire product complete.
+No App Store/TestFlight submission, AWS provisioning, automatic purchases, clinical validation, production SLA or measured AI accuracy is claimed. AWS resources must not be started on the assumption that a $1 account charge guarantees free hosting.
