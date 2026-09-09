@@ -6,6 +6,7 @@ const require = createRequire(
 );
 const { build } = require("esbuild");
 await build({
+  absWorkingDir: fileURLToPath(new URL("../", import.meta.url)),
   entryPoints: [
     fileURLToPath(new URL("../apps/web/lib/domain.ts", import.meta.url)),
   ],
