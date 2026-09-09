@@ -37,7 +37,7 @@ export class HuggingFaceProvider implements AIProvider {
       signal: AbortSignal.timeout(20000),
       body: JSON.stringify({
         model: request.model, messages, stream: false, temperature: 0.1,
-        max_tokens: 600, parallel_tool_calls: false, tool_choice: request.tool_choice,
+        max_tokens: 600, parallel_tool_calls: false, tool_choice: "auto",
         tools: (request.tools as Record<string, unknown>[]).map(({ type, ...fn }) => ({ type, function: fn })),
         ...(request.tool_choice !== "required" ? { response_format: { type: "json_schema", json_schema: schema } } : {}),
       }),
