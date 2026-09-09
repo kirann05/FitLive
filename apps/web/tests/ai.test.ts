@@ -165,3 +165,19 @@ test("Hugging Face preserves tool results and falls back when credits are unavai
   const unavailable = new HuggingFaceProvider("fixture-token", async () => new Response(null, { status: 402 }));
   assert.equal((await runCoach(s, "Why this plan?", unavailable, "fixture-model:nscale", now)).status, "fallback");
 });
+
+test("nutrition context distinguishes estimated logs from complete intake", () => {
+ const s=seed(now);s.meals=s.meals.slice(0,1).map(m=>({...m,date:"2026-09-09",food:{...m.food,source:"AI estimate"}}));
+ const r=executeReadTool(s,"get_nutrition_context",{},now) as {loggedMealCount:number;containsEstimates:boolean;coverage:string};
+ assert.equal(r.loggedMealCount,1);assert.equal(r.containsEstimates,true);assert.match(r.coverage,/not necessarily complete/);
+});
+test("provider failure does not answer an unrelated question with a recovery template",async()=>{
+ const s=seed(now);s.preferences!.aiConsent=true;
+ const r=await runCoach(s,"Explain my last meal",{complete:async()=>{throw new Error("offline");}},undefined,now);
+ assert.equal(r.status,"fallback");assert.match(r.text,/couldn’t generate a reliable answer/);assert.doesNotMatch(r.text,/sleep was/);
+});
+test("missing meals expose unknown totals instead of zero intake",()=>{
+ const s=seed(now);s.meals=[];
+ const r=executeReadTool(s,"get_nutrition_context",{},now) as {totals:unknown;loggedMealCount:number};
+ assert.equal(r.totals,null);assert.equal(r.loggedMealCount,0);
+});
