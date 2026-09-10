@@ -1,4 +1,7 @@
 "use client";
+import {Glance} from "@/components/fitlive/glance";
+import {InsightChart} from "@/components/fitlive/insight-chart";
+import {proteinSeries,sleepSeries,sessionSeries} from "@/lib/chart-data";
 import { BodyTrend } from "@/components/fitlive/body-trend";
 import type { FoodCandidate } from "@/lib/food-data";
 import { GroceryReview } from "@/components/fitlive/grocery-review";
@@ -35,7 +38,6 @@ import {
   Activity,
   ArrowUpRight,
   Dumbbell,
-  Moon,
   Utensils,
   TrendingUp,
   MessageCircle,
@@ -103,8 +105,6 @@ const destinations = [
   { name: "Progress", icon: TrendingUp },
   { name: "Coach", icon: MessageCircle },
 ];
-const time = (minutes: number) =>
-  `${Math.floor(minutes / 60)}h ${Math.round(minutes % 60)}m`;
 const round = (n: number) => Math.round(n);
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -585,7 +585,8 @@ export default function Home({ ownerId, authMode, exploring = false }: { ownerId
                 </section>
               )}
               <TabsContent value="Today">
-                <div className="today-grid">
+                <Glance state={s} onOpen={section=>section==="recovery"?setModal("why"):setTab(section==="food"?"Eat":"Train")}/>
+                <div className="today-focus">
                   <article className="next-action">
                     <div className="row spread">
                       <span className="eyebrow">YOUR NEXT SENSIBLE ACTION</span>
@@ -624,100 +625,9 @@ export default function Home({ ownerId, authMode, exploring = false }: { ownerId
                       </span>
                     </div>
                   </article>
-                  <article className="panel recovery">
-                    <div className="row spread">
-                      <h3>Recovery context</h3>
-                      <Heart />
-                    </div>
-                    <p className="recovery-value">{!r.latest ? "Building your baseline" : r.band}</p>
-                    <span
-                      className={
-                        "chip " + (r.band === "Reduced" ? "amber" : "")
-                      }
-                    >
-                      {r.confidence} confidence
-                    </span>
-                    <p>{r.reasons[0]}</p>
-                    <div className="metric-line">
-                      <span>
-                        <Moon />
-                        Sleep
-                      </span>
-                      <strong>{r.latest ? time(r.latest.sleep) : "—"}</strong>
-                    </div>
-                    <div className="metric-line">
-                      <span>
-                        <Heart />
-                        Resting heart rate
-                      </span>
-                      <strong>
-                        {r.latest?.rhr ? `${r.latest.rhr} bpm` : "—"}
-                      </strong>
-                    </div>
-                    <p className="muted">
-                      {r.latest
-                        ? `${r.latest.source} · ${r.days}-day baseline${r.stale ? " · Stale" : ""}`
-                        : "Add a check-in or manual health entry to begin."}
-                    </p>
-                  </article>
                 </div>
-                <div className="bottom-grid">
-                  <article className="panel">
-                    <div className="row spread">
-                      <p className="eyebrow">FUEL YOUR DAY</p>
-                      <Utensils />
-                    </div>
-                    <h3 className="section-title">
-                      {Math.max(0, round(s.profile.protein - t.protein))} g
-                      protein to your target
-                    </h3>
-                    <Progress
-                      value={Math.min(
-                        100,
-                        (t.protein / s.profile.protein) * 100,
-                      )}
-                      aria-label={`${round(t.protein)} of ${s.profile.protein} grams protein`}
-                    />
-                    <div className="row spread small-space">
-                      <p className="muted">
-                        {round(t.protein)} / {s.profile.protein} g
-                      </p>
-                      <p className="muted">
-                        {round(t.kcal)} / {s.profile.calories} kcal
-                      </p>
-                    </div>
-                    <button
-                      className="text-button"
-                      onClick={() => {
-                        setTab("Eat");
-                        setModal("meal");
-                      }}
-                    >
-                      Log a meal <ArrowRight />
-                    </button>
-                  </article>
-                  <article className="panel">
-                    <div className="row spread">
-                      <p className="eyebrow">A MOMENT FOR YOU</p>
-                      <Sun />
-                    </div>
-                    <h3 className="section-title">How are you feeling?</h3>
-                    <p>
-                      {s.checkins.some((c) => c.date === day)
-                        ? "Your check-in is saved. Update it if your day changes."
-                        : "Five seconds to bring the numbers into context."}
-                    </p>
-                    <button
-                      className="secondary small-space"
-                      onClick={() => setModal("checkin")}
-                    >
-                      {s.checkins.some((c) => c.date === day)
-                        ? "Update check-in"
-                        : "Quick check-in"}
-                      <Plus />
-                    </button>
-                  </article>
-                </div>
+                <div className="today-actions row wrap"><button className="secondary" onClick={()=>{setTab("Eat");setModal("meal");}}><Utensils/> Log a meal</button><button className="secondary" onClick={()=>setModal("checkin")}><Sun/>{s.checkins.some(c=>c.date===day)?"Update check-in":"Quick check-in"}</button></div>
+                <section className="panel small-space"><InsightChart title="Protein · your last seven days" points={proteinSeries(s)} unit="g" target={s.profile.protein}/></section>
                 {low.length > 0 && (
                   <button
                     className="pantry-notice"
@@ -755,15 +665,14 @@ export default function Home({ ownerId, authMode, exploring = false }: { ownerId
                 </div>
               </TabsContent>
               <TabsContent value="Train">
-                <ExerciseMatchReview state={s} busy={busy} act={act}/>
-                <TrainingTemplates state={s} busy={busy} act={act} onReady={()=>{setRepeatSession(null);if(s.onboarded)startWorkout();else setModal("profile");}}/>
+                {!active&&<TrainingTemplates state={s} busy={busy} act={act} onReady={()=>{setRepeatSession(null);if(s.onboarded)startWorkout();else setModal("profile");}}/>}
                 {s.workouts.length>0&&!active&&<button className="secondary small-space" onClick={()=>{const last=s.workouts.at(-1)!;const unique=last.sets.filter((x,i,a)=>a.findIndex(y=>(y.exerciseId??y.exercise)===(x.exerciseId??x.exercise))===i);setRepeatSession(unique.map(x=>({name:x.exercise,exerciseId:x.exerciseId,muscle:x.muscle,sets:last.sets.filter(y=>(y.exerciseId??y.exercise)===(x.exerciseId??x.exercise)).length,reps:"8–12",load:x.load,base:x.load,reason:"Repeat your previous session; adjust any set before logging."})));startWorkout();}}>Repeat last session</button>}
                 <ProgramEditor state={s} busy={busy} act={act} />
                 <div className="section-bar">
                   <div className="row">
                     <span className="chip">{s.profile.days} days / week</span>
                     <span className="muted">
-                      {s.profile.equipment} · Loads in kg
+                      {s.profile.equipment} · Loads in {s.preferences?.loadUnit??"kg"}
                     </span>
                   </div>
                   <button className="secondary" onClick={showSettings}>
@@ -792,7 +701,7 @@ export default function Home({ ownerId, authMode, exploring = false }: { ownerId
                           <p className="muted">
                             {x.sets} × {x.reps} · {s.workouts.some(w => w.sets.some(set => sameExercise(set,x.name,x.exerciseId))) ? `${displayLoad(x.load,s.preferences?.loadUnit??"kg")} ${s.preferences?.loadUnit??"kg"}` : "Choose a comfortable starting load"} · {x.muscle}
                           </p>
-                          <p className="muted">{x.reason}</p>
+                          {workout.findIndex(item=>item.reason===x.reason)===i&&<p className="muted">{x.reason}</p>}
                         </div>
                       </div>
                     ))}
@@ -806,7 +715,7 @@ export default function Home({ ownerId, authMode, exploring = false }: { ownerId
                   </section>
                   <section className="panel">
                     <p className="eyebrow">YOUR TRAINING LOG</p>
-                    <h3 className="section-title">Recent sessions</h3>
+                    <h3 className="section-title">Recent sessions</h3><InsightChart title="Working sets per session" points={sessionSeries(s)} unit="sets"/>
                     {s.workouts.length ? (
                       s.workouts
                         .slice(-6)
@@ -848,7 +757,7 @@ export default function Home({ ownerId, authMode, exploring = false }: { ownerId
                           : "Ready when you are"}
                       </span>
                     </div>
-                    <div className="rest-controls" aria-live="polite">{rest>0?<><span>Rest · {Math.floor(rest/60)}:{String(rest%60).padStart(2,"0")}</span><button className="secondary" onClick={()=>setRest(0)}>Skip</button><button className="secondary" onClick={()=>setRest(rest+30)}>+30 sec</button></>:<span>Logging a set starts a 90-second rest.</span>}<button className="text-button" onClick={()=>{if(typeof Notification!=="undefined")void Notification.requestPermission().then(p=>toast(p==="granted"?"Timer alerts enabled":"Use the on-screen timer; alerts aren't enabled."));else toast("This browser supports the on-screen timer only.");}}>Enable timer alerts</button></div>
+                    {draft.length>0&&<p key={`logged-${draft.length}`} className="set-saved-status"><Check size={16}/> Set {draft.length} logged</p>}<div className="rest-controls" aria-live="polite">{rest>0?<><span>Rest · {Math.floor(rest/60)}:{String(rest%60).padStart(2,"0")}</span><button className="secondary" onClick={()=>setRest(0)}>Skip</button><button className="secondary" onClick={()=>setRest(rest+30)}>+30 sec</button></>:<span>Logging a set starts a 90-second rest.</span>}<button className="text-button" onClick={()=>{if(typeof Notification!=="undefined")void Notification.requestPermission().then(p=>toast(p==="granted"?"Timer alerts enabled":"Use the on-screen timer; alerts aren't enabled."));else toast("This browser supports the on-screen timer only.");}}>Enable timer alerts</button></div>
                     <QuickSet act={act} workout={workout} state={s} draft={draft} owner={ownerId} onAdd={x=>{
                       const at=draft.length;const next=[...draft,x];if(!exploring){try{localStorage.setItem(draftKey,JSON.stringify(next));}catch{toast.error("Device storage is unavailable. Keep this page open until you save online.");}}setDraft(next);setRest(90);
                       toast.success(`Set ${at+1} logged`,{duration:5000,action:{label:"Undo",onClick:()=>setDraft(current=>current.filter(item=>item!==x))}});
@@ -1393,6 +1302,7 @@ export default function Home({ ownerId, authMode, exploring = false }: { ownerId
             })
           }
         />
+        {(s.exerciseMatches?.length??0)>0&&<details className="settings-group"><summary>Review exercise names · {s.exerciseMatches?.length}</summary><ExerciseMatchReview state={s} busy={busy} act={act}/></details>}
         <details className="settings-group"><summary>Coaching & app preferences</summary><ProductPreferences state={s} busy={busy} act={act} /></details>
         <div className="row wrap">
           <button
@@ -2143,45 +2053,8 @@ function ProgressView({ state: s }: { state: State }) {
         <article className="panel">
           <p className="eyebrow">RECOVERY OVER TIME</p>
           <h3 className="section-title">Your recent sleep</h3>
-          <div
-            className="bar-chart"
-            role="img"
-            aria-label={days
-              .map(
-                (d) =>
-                  `${d}: ${s.health.find((h) => h.date === d)?.sleep ?? "missing"} minutes`,
-              )
-              .join("; ")}
-          >
-            {days.map((d) => {
-              const h = s.health.find((h) => h.date === d);
-              return (
-                <div className="bar-column" key={d}>
-                  <span>{h ? time(h.sleep) : "—"}</span>
-                  <div className="bar-track">
-                    {sleepBaseline !== null && <span className="baseline-marker" style={{bottom:`${Math.min(100,sleepBaseline/600*100)}%`}} />}
-                    <div
-                      className="bar-fill"
-                      style={{
-                        height: h
-                          ? `${Math.min(100, (h.sleep / 600) * 100)}%`
-                          : "0%",
-                      }}
-                    />
-                  </div>
-                  <small>
-                    {new Date(d + "T12:00:00").toLocaleDateString("en", {
-                      weekday: "short",
-                    })}
-                  </small>
-                </div>
-              );
-            })}
-          </div>
-          <p className="muted">
-            {sleepBaseline !== null ? `Reference line: ${time(sleepBaseline)} personal baseline from ${sleepContext.days} prior nights. ` : "Seven prior nights are needed for a baseline. "}Missing days stay empty. Wearable estimates are not medical
-            measurements.
-          </p>
+          <InsightChart title="Sleep · last seven nights" points={sleepSeries(s)} unit="min" target={sleepBaseline} targetLabel="Personal baseline"/>
+          <p className="muted">{sleepBaseline===null?"Seven prior nights establish your personal baseline.":"Baseline uses prior recorded nights, not a prescribed sleep target."}</p>
         </article>
         <article className="panel">
           <p className="eyebrow">TRAINING BALANCE</p>
@@ -2211,7 +2084,7 @@ function ProgressView({ state: s }: { state: State }) {
           </p>
         </article>
       </div>
-      <section className="panel small-space"><p className="eyebrow">NUTRITION OVER TIME</p><h3>Protein in your food log</h3><p className="muted">Your current target: {s.profile.protein} g/day. These totals reflect logged meals, not necessarily your full intake.</p><div className="protein-days">{days.map(d => {const logged=s.meals.some(m=>m.date===d);const grams=totals(s,d).protein;return <div key={d}><div className="row spread"><span>{d}</span><strong>{logged ? `${Math.round(grams)} g` : "No record"}</strong></div><Progress value={logged ? Math.min(100,grams/s.profile.protein*100) : 0} aria-label={`${d}: ${logged ? `${Math.round(grams)} grams logged against ${s.profile.protein} gram target` : "no food recorded"}`}/></div>;})}</div></section>
+      <section className="panel small-space"><InsightChart title="Protein · last seven days" points={proteinSeries(s)} unit="g" target={s.profile.protein}/><p className="muted">Logged meals only · reference uses your current target.</p></section>
       <section className="panel small-space">
         <h3>This week, in perspective</h3>
         <p className="small-space">

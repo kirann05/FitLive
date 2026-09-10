@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {blank,seed} from '../lib/domain.ts';
+import {proteinSeries,sleepSeries,sessionSeries,chartCeiling} from '../lib/chart-data.ts';
+import {migrateExercises} from '../lib/exercises/migration.ts';
+const now=new Date('2026-09-10T15:00:00Z');
+test('empty charts retain their frames without inventing zero records',()=>{const s=blank();assert.equal(proteinSeries(s,now).length,7);assert.ok(proteinSeries(s,now).every(p=>p.value===null));assert.ok(sleepSeries(s,now).every(p=>p.value===null));assert.equal(sessionSeries(s).length,6);assert.ok(sessionSeries(s).every(p=>p.value===null));});
+test('one and two logged days retain missing slots and values above target',()=>{const s=seed(now);const meal=s.meals[0];s.meals=[{...meal,date:'2026-09-09',grams:100,food:{...meal.food,protein:200}}];assert.equal(proteinSeries(s,now).filter(p=>p.value!==null).length,1);s.meals.push({...meal,id:'second',date:'2026-09-10',grams:100,food:{...meal.food,protein:0}});const data=proteinSeries(s,now);assert.equal(data.filter(p=>p.value!==null).length,2);assert.equal(data.at(-1)?.value,0);assert.equal(data.at(-2)?.value,200);assert.ok(chartCeiling(data,145)>200);});
+test('sleep baseline scale includes all recorded values',()=>{assert.ok(chartCeiling([{date:'today',value:900}],450)>900);});
+test('exercise migration does not suggest a different primary muscle',()=>{const s=seed(now);s.workouts[0].sets[0]={...s.workouts[0].sets[0],exercise:'Dumbbell row',muscle:'Back',exerciseId:undefined};const m=migrateExercises(s);assert.ok(!m.exerciseMatches?.some(x=>x.name==='Dumbbell row'&&x.candidateId.toLowerCase().includes('raise')));assert.equal(m.workouts[0].sets[0].exercise,'Dumbbell row');});

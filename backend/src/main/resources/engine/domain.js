@@ -18718,7 +18718,7 @@ var FitLiveDomain = (() => {
         seen.set(key, existing.id);
         return existing.id;
       }
-      const matches = exerciseMatches(name);
+      const matches = exerciseMatches(name).filter((m) => m.exercise.primaryMuscles.includes(muscle));
       const best = matches[0];
       if (best && best.score >= 0.9 && (!matches[1] || best.score > matches[1].score)) {
         seen.set(key, best.exercise.id);
@@ -18733,6 +18733,11 @@ var FitLiveDomain = (() => {
     }
     for (const w of s.workouts) for (const set of w.sets) if (!set.exerciseId) set.exerciseId = identify(set.exercise, set.muscle);
     for (const session of s.program?.sessions ?? []) for (const e of session.exercises) if (!e.exerciseId) e.exerciseId = identify(e.name, e.muscle);
+    s.exerciseMatches = s.exerciseMatches.filter((m) => {
+      const original = s.customExercises.find((e) => e.id === m.legacyId);
+      const candidate = catalogue.find((e) => e.id === m.candidateId);
+      return original && candidate && original.primaryMuscles.some((muscle) => candidate.primaryMuscles.includes(muscle));
+    });
     s.exerciseCatalogueVersion = 1;
     return s;
   }
