@@ -159,7 +159,8 @@ test("recommendation rejection changes the next action and is auditable", () => 
   assert.equal(s.audit.at(-1)!.feedback, "rejected");
 });
 test("pantry forecast marks uncertainty instead of inventing depletion", () => {
-  const f = forecast(seed(now), now);
+  const emptyHistory = seed(now); emptyHistory.meals = [];
+  const f = forecast(emptyHistory, now);
   assert.equal(f[0].days, null);
   assert.equal(f.find((x) => x.id === "p-berries")!.low, true);
 });
@@ -204,4 +205,13 @@ test("invalid numeric input cannot reach arithmetic", () => {
 });
 test("health dates cannot be future days even with an old measurement timestamp", () => {
   assert.throws(() => apply(blank(), { type: "health", samples: [{ id: "future-day", date: "2030-01-01", sleep: 420, rhr: null, hrv: null, source: "HealthKit", sampleAt: now.toISOString(), syncAt: now.toISOString() }] }, "future", 0, now), /future/);
+});
+
+test("rules coach handles natural symptom language without training advice",()=>{
+ for(const message of ["My knee hurts badly when I squat. Is it torn? Should I take ibuprofen?","My ankle is swollen","Should I take Advil?"]){const answer=coach(seed(now),message,now);assert.match(answer,/healthcare professional/);assert.doesNotMatch(answer,/reps in reserve|comfortable load/);}
+ assert.match(coach(seed(now),"What is the capital of France?",now),/can’t answer/);
+});
+test("showcase fixture has mixed training and recorded pantry consumption",()=>{
+ const s=seed(now);assert.ok(new Set(s.workouts.flatMap(w=>w.sets.map(x=>x.muscle))).size>=3);
+ assert.ok(forecast(s,now).some(x=>x.days!==null));assert.ok(s.grocery.length>0);
 });

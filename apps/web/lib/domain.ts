@@ -1,3 +1,4 @@
+import { coachBoundary } from "./ai/coach-boundaries.ts";
 import { bodyEntrySchema, type BodyEntry } from "./habits.ts";
 import { cartItemsSchema, cartSchema, cartPolicy, checkCart, type Cart } from "./grocery.ts";
 import { z } from "zod";
@@ -398,8 +399,8 @@ export function seed(now = new Date()): State {
         status: "completed",
         effort: "About right",
         sets: [8, 10, 12].map((reps) => ({
-          exercise: "Goblet squat",
-          muscle: "Quads",
+          exercise: ["Goblet squat", "Dumbbell floor press", "Dumbbell row"][Math.floor(i / 2) % 3],
+          muscle: ["Quads", "Chest", "Back"][Math.floor(i / 2) % 3],
           reps,
           load: 20 + (28 - i) * 0.25,
           rpe: 8,
@@ -407,7 +408,13 @@ export function seed(now = new Date()): State {
       });
     }
     if (i > 0) {
-      s.meals.push({ id: `demo-m-${i}`, date, food: foods[2], grams: 200 });
+      s.meals.push(
+        { id: `demo-m-${i}`, date, food: foods[2], grams: i % 3 === 0 ? 600 : 450, pantryId: "p-tofu" },
+        { id: `demo-y-${i}`, date, food: foods[0], grams: 350, pantryId: "p-yogurt" },
+        { id: `demo-o-${i}`, date, food: foods[1], grams: 80, pantryId: "p-oats" },
+        { id: `demo-b-${i}`, date, food: foods[4], grams: 60, pantryId: "p-berries" },
+        { id: `demo-r-${i}`, date, food: foods[3], grams: 250 },
+      );
     }
   }
   s.checkins = [
@@ -451,6 +458,7 @@ export function seed(now = new Date()): State {
     { id: "demo-breakfast", date: dateKey(now), food: foods[0], grams: 200 },
     { id: "demo-oats", date: dateKey(now), food: foods[1], grams: 60 },
   );
+  s.grocery = forecast(s, now).filter(p => p.low).map(p => ({id:p.id,name:p.name,quantity:p.unit === "g" ? 500 : 1,checked:false}));
   return s;
 }
 const mean = (xs: number[]) =>
@@ -768,6 +776,12 @@ export function forecast(s: State, now = new Date()) {
     };
   });
 }
+export function groceryList(s: State, now = new Date()) {
+  const list = s.grocery.map(x => ({...x}));
+  const suggestions = [...forecast(s, now).filter(p => p.low).map(p => ({id:p.id,name:p.name,quantity:p.unit === "g" ? 500 : 1,checked:false})), ...shoppingNeeds(s, dateKey(now, s.profile.timezone))];
+  for (const item of suggestions) if (!list.some(x => x.name.toLowerCase() === item.name.toLowerCase())) list.push(item);
+  return list;
+}
 export function scheduledToday(s: State, now = new Date()) {
   if (!s.program) return true;
   const weekday = new Date(
@@ -827,19 +841,19 @@ export function recommendation(s: State, now = new Date()) {
 }
 export function coach(s: State, message: string, now = new Date()) {
   const m = message.toLowerCase();
-  if (/diagnos|medication|chest pain|treat my|injur/.test(m))
-    return "I can help with training and nutrition planning, but cannot diagnose or treat symptoms. Pause exercise if you feel unwell and seek appropriate professional care.";
-  if (/buy|purchase|checkout|order groceries/.test(m))
-    return "I can prepare a shopping list in Eat → Groceries. FitLive does not place orders or spend money.";
-  if (/food|eat|protein|meal|pantry/.test(m)) {
+  const boundary = coachBoundary(message);
+  if (boundary) return boundary;
+  if (/food|eat|protein|meal|pantry|logged today/.test(m)) {
     const t = totals(s, dateKey(now, s.profile.timezone));
     const candidates = foods.filter(
       (f) =>
         allowed(f, s.profile) &&
         s.pantry.some((p) => p.name === f.name && p.quantity > 0),
     );
+    if (!s.meals.some(x => x.date === dateKey(now, s.profile.timezone))) return "No meals are recorded today, so I don’t know your intake. Log a meal in Eat to see recorded nutrition totals.";
     return `You have logged ${Math.round(t.protein)} g protein against your ${s.profile.protein} g target today. ${candidates.length ? "Your pantry includes " + candidates.map((x) => x.name.toLowerCase()).join(", ") + ". Review portions in Eat before logging." : "Add pantry items or search a verified food record in Eat."} ${s.mode === "demo" ? "These are demo nutrient fixtures." : ""}`;
   }
+  if (!/workout|train|session|recover|sleep|readiness|rest|exercise|plan/i.test(m)) return "I’m PACE, your training, recovery and food guide. I can’t answer that from your FitLive records. Try ‘Why this workout?’, ‘What have I logged today?’ or ‘How much protein have I logged?’";
   const r = recovery(s, now);
   return `Recovery context is ${r.band.toLowerCase()}, with ${r.confidence.toLowerCase()} confidence. ${r.reasons.join(" ")} ${plan(s, now)[0].reason} This response uses your saved state and versioned rules; no AI provider is connected.`;
 }
@@ -1066,6 +1080,7 @@ export function apply(
       }
       break;
     case "grocery-check": {
+      s.grocery = groceryList(s, now);
       const item = s.grocery.find((x) => x.id === c.id);
       if (!item) throw new Error("Shopping item not found.");
       item.checked = c.checked;

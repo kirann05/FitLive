@@ -375,7 +375,7 @@ export function MealPlanner({ state, busy, act }: Props) {
             <span className={"chip " + (d.pantryReady ? "" : "amber")}>
               {d.pantryReady
                 ? "Ready from your pantry"
-                : `${d.missing.length} ingredients to check`}
+                : `${d.missing.length} ingredient${d.missing.length === 1 ? "" : "s"} to check`}
             </span>
             <div className="row wrap small-space">
               <button

@@ -30,6 +30,7 @@ var FitLiveDomain = (() => {
     foodSchema: () => foodSchema,
     foods: () => foods,
     forecast: () => forecast,
+    groceryList: () => groceryList,
     plan: () => plan,
     progression: () => progression,
     recommendation: () => recommendation,
@@ -40,6 +41,17 @@ var FitLiveDomain = (() => {
     totals: () => totals,
     validateSnapshot: () => validateSnapshot
   });
+
+  // apps/web/lib/ai/coach-boundaries.ts
+  function coachBoundary(message) {
+    if (/\b(pain|hurts?|torn|swollen|swelling|sprain\w*|injur\w*|diagnos\w*|medication|ibuprofen|advil|painkillers?|naproxen|acetaminophen|paracetamol)\b|chest pain|treat my/i.test(message))
+      return "I can\u2019t determine what is causing your symptoms, whether something is torn, or which medicine you should take. Don\u2019t use PACE\u2019s workout suggestions to assess an injury. Please ask a qualified healthcare professional about the symptoms and medication question.";
+    if (/\b(buy|purchase|checkout)\b|order groceries/i.test(message))
+      return "I can help you review a shopping list in Eat \u2192 Groceries. FitLive does not place orders or spend money.";
+    if (/\b(beer|alcohol|drunk|hangover)\b/i.test(message))
+      return "I can\u2019t assess whether training is appropriate from that message. You can choose a rest day; you don\u2019t need to make up a missed session. PACE\u2019s recovery data does not measure alcohol\u2019s effects.";
+    return null;
+  }
 
   // apps/web/node_modules/zod/v3/external.js
   var external_exports = {};
@@ -4519,8 +4531,8 @@ var FitLiveDomain = (() => {
           status: "completed",
           effort: "About right",
           sets: [8, 10, 12].map((reps) => ({
-            exercise: "Goblet squat",
-            muscle: "Quads",
+            exercise: ["Goblet squat", "Dumbbell floor press", "Dumbbell row"][Math.floor(i / 2) % 3],
+            muscle: ["Quads", "Chest", "Back"][Math.floor(i / 2) % 3],
             reps,
             load: 20 + (28 - i) * 0.25,
             rpe: 8
@@ -4528,7 +4540,13 @@ var FitLiveDomain = (() => {
         });
       }
       if (i > 0) {
-        s.meals.push({ id: `demo-m-${i}`, date, food: foods[2], grams: 200 });
+        s.meals.push(
+          { id: `demo-m-${i}`, date, food: foods[2], grams: i % 3 === 0 ? 600 : 450, pantryId: "p-tofu" },
+          { id: `demo-y-${i}`, date, food: foods[0], grams: 350, pantryId: "p-yogurt" },
+          { id: `demo-o-${i}`, date, food: foods[1], grams: 80, pantryId: "p-oats" },
+          { id: `demo-b-${i}`, date, food: foods[4], grams: 60, pantryId: "p-berries" },
+          { id: `demo-r-${i}`, date, food: foods[3], grams: 250 }
+        );
       }
     }
     s.checkins = [
@@ -4572,6 +4590,7 @@ var FitLiveDomain = (() => {
       { id: "demo-breakfast", date: dateKey(now), food: foods[0], grams: 200 },
       { id: "demo-oats", date: dateKey(now), food: foods[1], grams: 60 }
     );
+    s.grocery = forecast(s, now).filter((p) => p.low).map((p) => ({ id: p.id, name: p.name, quantity: p.unit === "g" ? 500 : 1, checked: false }));
     return s;
   }
   var mean = (xs) => xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
@@ -4804,6 +4823,12 @@ var FitLiveDomain = (() => {
       };
     });
   }
+  function groceryList(s, now = /* @__PURE__ */ new Date()) {
+    const list = s.grocery.map((x) => ({ ...x }));
+    const suggestions = [...forecast(s, now).filter((p) => p.low).map((p) => ({ id: p.id, name: p.name, quantity: p.unit === "g" ? 500 : 1, checked: false })), ...shoppingNeeds(s, dateKey(now, s.profile.timezone))];
+    for (const item of suggestions) if (!list.some((x) => x.name.toLowerCase() === item.name.toLowerCase())) list.push(item);
+    return list;
+  }
   function scheduledToday(s, now = /* @__PURE__ */ new Date()) {
     if (!s.program) return true;
     const weekday = (/* @__PURE__ */ new Date(
@@ -4829,17 +4854,17 @@ var FitLiveDomain = (() => {
   }
   function coach(s, message, now = /* @__PURE__ */ new Date()) {
     const m = message.toLowerCase();
-    if (/diagnos|medication|chest pain|treat my|injur/.test(m))
-      return "I can help with training and nutrition planning, but cannot diagnose or treat symptoms. Pause exercise if you feel unwell and seek appropriate professional care.";
-    if (/buy|purchase|checkout|order groceries/.test(m))
-      return "I can prepare a shopping list in Eat \u2192 Groceries. FitLive does not place orders or spend money.";
-    if (/food|eat|protein|meal|pantry/.test(m)) {
+    const boundary = coachBoundary(message);
+    if (boundary) return boundary;
+    if (/food|eat|protein|meal|pantry|logged today/.test(m)) {
       const t = totals(s, dateKey(now, s.profile.timezone));
       const candidates = foods.filter(
         (f) => allowed(f, s.profile) && s.pantry.some((p) => p.name === f.name && p.quantity > 0)
       );
+      if (!s.meals.some((x) => x.date === dateKey(now, s.profile.timezone))) return "No meals are recorded today, so I don\u2019t know your intake. Log a meal in Eat to see recorded nutrition totals.";
       return `You have logged ${Math.round(t.protein)} g protein against your ${s.profile.protein} g target today. ${candidates.length ? "Your pantry includes " + candidates.map((x) => x.name.toLowerCase()).join(", ") + ". Review portions in Eat before logging." : "Add pantry items or search a verified food record in Eat."} ${s.mode === "demo" ? "These are demo nutrient fixtures." : ""}`;
     }
+    if (!/workout|train|session|recover|sleep|readiness|rest|exercise|plan/i.test(m)) return "I\u2019m PACE, your training, recovery and food guide. I can\u2019t answer that from your FitLive records. Try \u2018Why this workout?\u2019, \u2018What have I logged today?\u2019 or \u2018How much protein have I logged?\u2019";
     const r = recovery(s, now);
     return `Recovery context is ${r.band.toLowerCase()}, with ${r.confidence.toLowerCase()} confidence. ${r.reasons.join(" ")} ${plan(s, now)[0].reason} This response uses your saved state and versioned rules; no AI provider is connected.`;
   }
@@ -5048,6 +5073,7 @@ var FitLiveDomain = (() => {
         }
         break;
       case "grocery-check": {
+        s.grocery = groceryList(s, now);
         const item = s.grocery.find((x) => x.id === c.id);
         if (!item) throw new Error("Shopping item not found.");
         item.checked = c.checked;

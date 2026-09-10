@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { coachBoundary } from "./coach-boundaries.ts";
 import { PACE_PROMPT } from "./pace-prompt.ts";
 import { coach, recovery, plan, totals, dateKey, type State } from "../domain.ts";
 import { mealCandidates } from "../planning.ts";
@@ -171,12 +172,8 @@ export async function runCoach(
   });
   if (!s.preferences?.aiConsent) return fallback("consent_required");
   if (!provider) return fallback("not_configured");
-  if (
-    /diagnos|medication|chest pain|treat my|injur|buy|purchase|checkout|order groceries/i.test(
-      message,
-    )
-  )
-    return fallback("ready");
+  const boundary = coachBoundary(message);
+  if (boundary) return { ...fallback("ready"), text: boundary };
   const input: unknown[] = [{ role: "user", content: message }];
   const calls: string[] = [];
   try {

@@ -77,6 +77,7 @@ import {
   totals,
   plan,
   forecast,
+  groceryList,
   dateKey,
   sessionName,
   type State,
@@ -450,7 +451,7 @@ export default function Home({ ownerId, authMode, exploring = false }: { ownerId
             aria-label="Open profile and settings"
             onClick={showSettings}
           >
-            {s.profile.name.charAt(0)}
+            {s.profile.name && s.profile.name !== "You" ? s.profile.name.charAt(0) : <Activity size={18} />}
           </button>
         </div>
       </header>
@@ -503,7 +504,7 @@ export default function Home({ ownerId, authMode, exploring = false }: { ownerId
                   </p>
                   <h1>
                     {tab === "Today"
-                      ? `Good ${new Date().getHours() < 12 ? "morning" : new Date().getHours() < 18 ? "afternoon" : "evening"}, ${s.profile.name}.`
+                      ? `Good ${new Date().getHours() < 12 ? "morning" : new Date().getHours() < 18 ? "afternoon" : "evening"}${s.profile.name && s.profile.name !== "You" ? `, ${s.profile.name}` : ""}.`
                       : tab === "Train"
                         ? "Strong, one session at a time."
                         : tab === "Eat"
@@ -566,13 +567,12 @@ export default function Home({ ownerId, authMode, exploring = false }: { ownerId
                       <Sun />
                     </div>
                     <h2>{rec.title}</h2>
-                    <p>{rec.text}</p>
+                    <p>{rec.text}</p>{rec.text.includes("Your feedback is saved") && <p className="feedback-explainer">Your saved feedback is why PACE is suggesting a recovery day.</p>}
                     <div className="row wrap">
                       <button
                         className="primary"
-                        disabled={!s.onboarded}
                         onClick={() =>
-                          rec.target === "Today"
+                          !s.onboarded ? setModal("profile") : rec.target === "Today"
                             ? setModal("why")
                             : setTab(rec.target)
                         }
@@ -604,7 +604,7 @@ export default function Home({ ownerId, authMode, exploring = false }: { ownerId
                       <h3>Recovery context</h3>
                       <Heart />
                     </div>
-                    <h2>{!r.latest ? "Building your baseline" : r.band}</h2>
+                    <p className="recovery-value">{!r.latest ? "Building your baseline" : r.band}</p>
                     <span
                       className={
                         "chip " + (r.band === "Reduced" ? "amber" : "")
@@ -762,7 +762,7 @@ export default function Home({ ownerId, authMode, exploring = false }: { ownerId
                         <div>
                           <h3>{x.name}</h3>
                           <p className="muted">
-                            {x.sets} × {x.reps} · {x.load} kg · {x.muscle}
+                            {x.sets} × {x.reps} · {s.workouts.some(w => w.sets.some(set => set.exercise === x.name)) ? `${x.load} kg` : "Choose a comfortable starting load"} · {x.muscle}
                           </p>
                           <p className="muted">{x.reason}</p>
                         </div>
@@ -770,10 +770,9 @@ export default function Home({ ownerId, authMode, exploring = false }: { ownerId
                     ))}
                     <button
                       className="primary"
-                      disabled={!s.onboarded}
-                      onClick={startWorkout}
+                      onClick={() => s.onboarded ? startWorkout() : setModal("profile")}
                     >
-                      {active ? "Continue workout" : "Start session"}
+                      {!s.onboarded ? "Set up & start" : active ? "Continue workout" : "Start session"}
                       <ArrowUpRight />
                     </button>
                   </section>
@@ -824,6 +823,7 @@ export default function Home({ ownerId, authMode, exploring = false }: { ownerId
                     </div>
                     <SetForm
                       workout={workout}
+                        history={s.workouts}
                       onAdd={(x) => {
                         setDraft([...draft, x]);
                         setRest(90);
@@ -909,8 +909,7 @@ export default function Home({ ownerId, authMode, exploring = false }: { ownerId
                   {[
                     ["Protein", t.protein, s.profile.protein, "g"],
                     ["Energy", t.kcal, s.profile.calories, "kcal"],
-                    ["Carbs", t.carbs, 0, "g"],
-                    ["Fat", t.fat, 0, "g"],
+
                   ].map(([name, value, target, unit]) => (
                     <article className="panel macro" key={String(name)}>
                       <p>{name}</p>
@@ -937,6 +936,7 @@ export default function Home({ ownerId, authMode, exploring = false }: { ownerId
                     </article>
                   ))}
                 </div>
+                <p className="nutrition-detail">Also logged today: {round(t.carbs)} g carbs · {round(t.fat)} g fat · {round(t.fiber)} g fiber. No targets set for these nutrients.</p>
                 <Tabs value={eatTab} onValueChange={setEatTab}>
                   <div className="section-bar">
                     <TabsList>
@@ -1086,8 +1086,8 @@ export default function Home({ ownerId, authMode, exploring = false }: { ownerId
                         </div>
                         <span className="chip">List only · No purchases</span>
                       </div>
-                      {s.grocery.length ? (
-                        s.grocery.map((g) => (
+                      {groceryList(s).length ? (
+                        groceryList(s).map((g) => (
                           <div className="inventory-row" key={g.id}>
                             <Checkbox
                               id={g.id}
@@ -1119,16 +1119,16 @@ export default function Home({ ownerId, authMode, exploring = false }: { ownerId
                       ) : (
                         <Empty
                           title="Keep shopping intentional"
-                          text="Refresh the list to include low-stock items. An empty list means nothing is flagged yet."
+                          text="Low-stock items and planned meal needs appear here automatically. Nothing is flagged yet."
                         />
                       )}
                       <button
                         className="secondary"
-                        disabled={!s.grocery.length}
+                        disabled={!groceryList(s).length}
                         onClick={() =>
                           saveFile(
                             "fitlive-shopping-list.txt",
-                            s.grocery
+                            groceryList(s)
                               .map(
                                 (x) =>
                                   `${x.checked ? "[x]" : "[ ]"} ${x.name}: ${x.quantity} ${s.pantry.find((p) => p.id === x.id)?.unit ?? "g"}`,
@@ -1368,7 +1368,7 @@ export default function Home({ ownerId, authMode, exploring = false }: { ownerId
             })
           }
         />
-        <ProductPreferences state={s} busy={busy} act={act} />
+        <details className="settings-group"><summary>Coaching & app preferences</summary><ProductPreferences state={s} busy={busy} act={act} /></details>
         <div className="row wrap">
           <button
             className="text-button"
@@ -1817,10 +1817,15 @@ function ProfileForm({
   busy: boolean;
   onSave: (p: Profile) => void;
 }) {
+  const [step, setStep] = useState(0);
+  const titles = ["Your goal & routine", "Food preferences", "Your planning targets"];
   return (
-    <form
+    <form noValidate
       onSubmit={(e) => {
         e.preventDefault();
+        const fields = Array.from(e.currentTarget.querySelectorAll(`fieldset:not([hidden]) input, fieldset:not([hidden]) select`)) as unknown as {reportValidity(): boolean}[];
+        if (!fields.every(field => field.reportValidity())) return;
+        if (step < 2) { setStep(step + 1); return; }
         const f = new FormData(e.currentTarget);
         onSave({
           ...p,
@@ -1844,6 +1849,8 @@ function ProfileForm({
         });
       }}
     >
+      <p className="eyebrow">Step {step + 1} of 3 · {titles[step]}</p>
+      <fieldset hidden={step !== 0}>
       <div className="form-grid">
         <Field label="Your name">
           <input
@@ -1858,13 +1865,6 @@ function ProfileForm({
             <option>Build muscle</option>
             <option>Get stronger</option>
             <option>Maintain fitness</option>
-          </select>
-        </Field>
-        <Field label="Diet">
-          <select name="diet" defaultValue={p.diet}>
-            <option value="vegetarian">Vegetarian</option>
-            <option value="vegan">Vegan</option>
-            <option value="omnivore">Omnivore</option>
           </select>
         </Field>
         <Field label="Training days per week">
@@ -1885,6 +1885,15 @@ function ProfileForm({
           <option>Bodyweight</option>
         </select>
       </Field>
+      </fieldset>
+      <fieldset hidden={step !== 1}>
+        <Field label="Diet">
+          <select name="diet" defaultValue={p.diet}>
+            <option value="vegetarian">Vegetarian</option>
+            <option value="vegan">Vegan</option>
+            <option value="omnivore">Omnivore</option>
+          </select>
+        </Field>
       <Field label="Allergies · comma separated">
         <input
           name="allergies"
@@ -1895,6 +1904,9 @@ function ProfileForm({
       <Field label="Foods to avoid · comma separated">
         <input name="dislikes" defaultValue={p.dislikes.join(", ")} />
       </Field>
+      </fieldset>
+      <fieldset hidden={step !== 2}>
+      <p className="muted">These are editable planning values, not personalized recommendations. Set targets you already use or have agreed with a professional. Body weight can be recorded separately in Progress.</p>
       <div className="form-grid">
         <Field label="Protein target (g/day)">
           <input
@@ -1922,16 +1934,18 @@ function ProfileForm({
         save my fitness, food and health entries in this private workspace. I
         understand this is a wellness planning tool.
       </label>
-      <button className="primary" disabled={busy}>
-        Save preferences <Check />
-      </button>
+      </fieldset>
+      <div className="row wrap">{step > 0 && <button type="button" className="secondary" onClick={() => setStep(step - 1)}>Back</button>}
+      <button className="primary" disabled={busy} type="submit">{step < 2 ? "Continue" : "Save & continue"}</button></div>
     </form>
   );
 }
 function SetForm({
   workout,
+  history,
   onAdd,
 }: {
+  history: State["workouts"];
   workout: ReturnType<typeof plan>;
   onAdd: (s: SetLog) => void;
 }) {
@@ -1978,7 +1992,8 @@ function SetForm({
           min="0"
           max="500"
           step="0.5"
-          defaultValue={p.load}
+          placeholder="Choose a starting load"
+          defaultValue={history.some(w => w.sets.some(x => x.exercise === p.name)) ? p.load : undefined}
         />
       </Field>
       <Field label="Effort (RPE)">
@@ -2137,6 +2152,8 @@ function ProgressView({ state: s }: { state: State }) {
       },
       {} as Record<string, number>,
     );
+  const sleepContext = recovery(s);
+  const sleepBaseline = sleepContext.days >= 7 ? sleepContext.baseline.sleep : null;
   const proteinDays = days.filter(
     (d) => totals(s, d).protein >= s.profile.protein,
   ).length;
@@ -2190,6 +2207,7 @@ function ProgressView({ state: s }: { state: State }) {
                 <div className="bar-column" key={d}>
                   <span>{h ? time(h.sleep) : "—"}</span>
                   <div className="bar-track">
+                    {sleepBaseline !== null && <span className="baseline-marker" style={{bottom:`${Math.min(100,sleepBaseline/600*100)}%`}} />}
                     <div
                       className="bar-fill"
                       style={{
@@ -2209,7 +2227,7 @@ function ProgressView({ state: s }: { state: State }) {
             })}
           </div>
           <p className="muted">
-            Missing days stay empty. Wearable estimates are not medical
+            {sleepBaseline !== null ? `Reference line: ${time(sleepBaseline)} personal baseline from ${sleepContext.days} prior nights. ` : "Seven prior nights are needed for a baseline. "}Missing days stay empty. Wearable estimates are not medical
             measurements.
           </p>
         </article>
@@ -2241,6 +2259,7 @@ function ProgressView({ state: s }: { state: State }) {
           </p>
         </article>
       </div>
+      <section className="panel small-space"><p className="eyebrow">NUTRITION OVER TIME</p><h3>Protein in your food log</h3><p className="muted">Your current target: {s.profile.protein} g/day. These totals reflect logged meals, not necessarily your full intake.</p><div className="protein-days">{days.map(d => {const logged=s.meals.some(m=>m.date===d);const grams=totals(s,d).protein;return <div key={d}><div className="row spread"><span>{d}</span><strong>{logged ? `${Math.round(grams)} g` : "No record"}</strong></div><Progress value={logged ? Math.min(100,grams/s.profile.protein*100) : 0} aria-label={`${d}: ${logged ? `${Math.round(grams)} grams logged against ${s.profile.protein} gram target` : "no food recorded"}`}/></div>;})}</div></section>
       <section className="panel small-space">
         <h3>This week, in perspective</h3>
         <p className="small-space">
