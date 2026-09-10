@@ -1,0 +1,10 @@
+import {z} from "zod";
+import raw from "./vendor/catalogue.json" with {type:"json"};
+export const exerciseSchema=z.object({id:z.string().min(1).max(160),name:z.string().min(1).max(100),aliases:z.array(z.string().max(100)).max(30),primaryMuscles:z.array(z.string().max(40)).min(1).max(6),secondaryMuscles:z.array(z.string().max(40)).max(10),equipment:z.enum(["barbell","dumbbell","cable","machine","bodyweight","kettlebell","band","other","unknown"]),minReps:z.number().int().min(1).max(30),maxReps:z.number().int().min(1).max(30),increment:z.number().min(.5).max(5),modality:z.enum(["strength","distance","interval","duration"])}).refine(x=>x.minReps<=x.maxReps);
+export type Exercise=z.infer<typeof exerciseSchema>;
+export const catalogue=raw as Exercise[];
+export const normalizeExercise=(name:string)=>name.toLowerCase().replace(/dumble|dumbell/g,"dumbbell").replace(/inclined/g,"incline").replace(/[^a-z0-9]+/g," ").trim();
+export function similarity(a:string,b:string){a=normalizeExercise(a);b=normalizeExercise(b);if(a===b)return 1;if(!a||!b)return 0;let row=Array.from({length:b.length+1},(_,i)=>i);for(let i=1;i<=a.length;i++){const next=[i];for(let j=1;j<=b.length;j++)next[j]=Math.min(next[j-1]+1,row[j]+1,row[j-1]+(a[i-1]===b[j-1]?0:1));row=next;}return 1-row[b.length]/Math.max(a.length,b.length);}
+export function exerciseMatches(name:string,custom:Exercise[]=[]){return [...custom,...catalogue].map(exercise=>({exercise,score:Math.max(...[exercise.name,...exercise.aliases].map(x=>similarity(name,x)))})).filter(x=>x.score>=.6).sort((a,b)=>b.score-a.score||a.exercise.id.localeCompare(b.exercise.id)).slice(0,5);}
+export function exerciseIdentity(name:string,id?:string){if(id)return id;const found=exerciseMatches(name);return found[0]&&found[0].score>=.9&&(!found[1]||found[0].score>found[1].score)?found[0].exercise.id:"custom:"+normalizeExercise(name).replace(/ /g,"-");}
+export function sameExercise(a:{exercise:string;exerciseId?:string},name:string,id?:string){return exerciseIdentity(a.exercise,a.exerciseId)===exerciseIdentity(name,id);}

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { allowed, foods, dateKey, type State, type Food } from "./domain.ts";
 export type Prescription = {
+  exerciseId?: string;
   name: string;
   muscle: string;
   sets: number;
@@ -23,6 +24,7 @@ export type Recipe = {
 };
 export type PlannedMeal = { id: string; date: string; recipeId: string };
 export type Preferences = {
+  loadUnit?: "kg" | "lb";
   aiConsent: boolean;
   theme: "light" | "dark";
   weeklyBudget: number;
@@ -31,6 +33,7 @@ export type Preferences = {
 const prescription = z
   .object({
     name: z.string().min(1).max(100),
+    exerciseId: z.string().max(160).optional(),
     muscle: z.string().min(1).max(40),
     sets: z.number().int().min(1).max(6),
     minReps: z.number().int().min(1).max(30),
@@ -79,6 +82,7 @@ export const recipeSchema = z.object({
   rating: z.number().int().min(-1).max(1),
 });
 export const preferencesSchema = z.object({
+  loadUnit: z.enum(["kg","lb"]).optional(),
   aiConsent: z.boolean(),
   theme: z.enum(["light", "dark"]),
   weeklyBudget: z.number().min(0).max(10000),
@@ -86,6 +90,7 @@ export const preferencesSchema = z.object({
 });
 export function defaults(): Preferences {
   return {
+    loadUnit: "lb",
     aiConsent: false,
     theme: "light",
     weeklyBudget: 100,

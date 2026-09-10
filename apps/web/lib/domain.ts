@@ -1,3 +1,5 @@
+import { catalogue, exerciseSchema, exerciseMatches, exerciseIdentity, sameExercise, type Exercise } from "./exercises/catalogue.ts";
+import { migrateExercises, confirmExerciseMatch, type ExerciseMatch } from "./exercises/migration.ts";
 import { coachBoundary } from "./ai/coach-boundaries.ts";
 import { bodyEntrySchema, type BodyEntry } from "./habits.ts";
 import { cartItemsSchema, cartSchema, cartPolicy, checkCart, type Cart } from "./grocery.ts";
@@ -41,10 +43,11 @@ export type Profile = {
   consent: boolean;
 };
 export type SetLog = {
+  exerciseId?: string;
   exercise: string;
   reps: number;
   load: number;
-  rpe: number;
+  rpe?: number;
   muscle: string;
 };
 export type Workout = {
@@ -119,6 +122,9 @@ export type State = {
   }[];
   onboarded: boolean;
   program?: Program;
+  customExercises?: Exercise[];
+  exerciseMatches?: ExerciseMatch[];
+  exerciseCatalogueVersion?: number;
   cart?: Cart;
   bodyEntries?: BodyEntry[];
   savedFoods?: Food[];
@@ -156,6 +162,9 @@ export const commandSchema = z.discriminatedUnion("type", [
   z.object({type:z.literal("body-delete"),date:calendarDate}),
   z.object({type:z.literal("cart-preview"),items:cartItemsSchema}),
   z.object({type:z.literal("cart-approve"),id:z.string()}),
+  z.object({type:z.literal("exercise-create"),exercise:exerciseSchema}),
+  z.object({type:z.literal("exercise-match"),legacyId:z.string(),targetId:z.string()}),
+  z.object({type:z.literal("exercise-migrate")}),
   z.object({type:z.literal("meal-batch"),items:z.array(z.object({food:foodSchema,grams:num(1,2000)})).min(1).max(8)}),
   z.object({ type: z.literal("program"), program: programSchema }),
   z.object({ type: z.literal("preferences"), preferences: preferencesSchema }),
@@ -208,10 +217,11 @@ export const commandSchema = z.discriminatedUnion("type", [
       .array(
         z.object({
           exercise: z.string().min(1).max(100),
+          exerciseId: z.string().max(160).optional(),
           muscle: z.string().max(50),
           reps: num(1, 100).int(),
           load: num(0, 500),
-          rpe: num(1, 10),
+          rpe: num(1, 10).optional(),
         }),
       )
       .min(1)
@@ -585,7 +595,7 @@ export function progression(
   now = new Date(),
 ) {
   const recent = s.workouts
-    .filter((w) => w.sets.some((x) => x.exercise === exercise))
+    .filter((w) => w.sets.some((x) => sameExercise(x,exercise)))
     .sort((a, b) => b.date.localeCompare(a.date));
   const last = recent[0];
   if (!last)
@@ -594,7 +604,7 @@ export function progression(
       reason:
         "Start with a comfortable load; keep two or more reps in reserve.",
     };
-  const sets = last.sets.filter((x) => x.exercise === exercise);
+  const sets = last.sets.filter((x) => sameExercise(x,exercise));
   const load = Math.max(...sets.map((x) => x.load));
   if (now.getTime() - Date.parse(last.date + "T12:00:00Z") > 14 * 86400000)
     return {
@@ -608,7 +618,7 @@ export function progression(
       recent
         .slice(0, 2)
         .every((w) =>
-          w.sets.filter((x) => x.exercise === exercise).some((x) => x.reps < 8),
+          w.sets.filter((x) => sameExercise(x,exercise)).some((x) => x.reps < 8),
         ))
   )
     return {
@@ -619,12 +629,12 @@ export function progression(
   if (
     last.status === "completed" &&
     sets.length >= 3 &&
-    sets.every((x) => x.reps >= 12 && x.rpe <= 8)
+    sets.every((x) => x.reps >= 12 && (x.rpe === undefined || x.rpe <= 8))
   )
     return {
       load: load + 2.5,
       reason:
-        "All three working sets reached 12 reps at RPE 8 or less. Add 2.5 kg.",
+        "All three working sets reached 12 reps without high effort recorded. Add 2.5 kg.",
     };
   return {
     load,
@@ -655,15 +665,15 @@ export function plan(s: State, now = new Date()) {
         .find(
           (w) =>
             w.status === "completed" &&
-            w.sets.some((a) => a.exercise === x.name),
+            w.sets.some((a) => sameExercise(a,x.name,x.exerciseId)),
         );
-      const sets = previous?.sets.filter((a) => a.exercise === x.name) ?? [];
+      const sets = previous?.sets.filter((a) => sameExercise(a,x.name,x.exerciseId)) ?? [];
       const lastLoad = sets.length
         ? Math.max(...sets.map((a) => a.load))
         : x.load;
       const advance =
         sets.length >= x.sets &&
-        sets.every((a) => a.reps >= x.maxReps && a.rpe <= 8);
+        sets.every((a) => a.reps >= x.maxReps && (a.rpe === undefined || a.rpe <= 8));
       const returning =
         previous &&
         now.getTime() - Date.parse(previous.date + "T12:00:00Z") >
@@ -676,6 +686,7 @@ export function plan(s: State, now = new Date()) {
           : lastLoad;
       return {
         name: x.name,
+        exerciseId: x.exerciseId,
         muscle: x.muscle,
         base: x.load,
         sets: x.sets,
@@ -749,6 +760,7 @@ export function plan(s: State, now = new Date()) {
     return {
       ...x,
       ...p,
+      exerciseId: exerciseIdentity(x.name),
       load: body ? 0 : Math.round(p.load * r.adjustment * 2) / 2,
       sets: 3,
       reps: "8–12",
@@ -868,9 +880,18 @@ export function apply(
   const c = commandSchema.parse(input);
   if (c.type === "delete") return blank();
   if (c.type === "mode") return c.mode === "demo" ? seed(now) : blank();
-  const s = structuredClone(state),
+  const s = migrateExercises(state),
     day = dateKey(now, s.profile.timezone);
   switch (c.type) {
+    case "exercise-migrate": break;
+    case "exercise-match": confirmExerciseMatch(s,c.legacyId,c.targetId); break;
+    case "exercise-create": {
+      if(!c.exercise.id.startsWith("custom:")) throw new Error("Custom exercise ID required");
+      const match=exerciseMatches(c.exercise.name,s.customExercises)[0];
+      if(match && match.score>=.9) throw new Error(`Use the existing exercise: ${match.exercise.name}`);
+      if(s.customExercises?.some(x=>x.id===c.exercise.id)) throw new Error("Exercise ID already exists");
+      s.customExercises=[...(s.customExercises??[]),c.exercise]; break;
+    }
     case "body-entry":
       if(c.entry.date>day)throw new Error("Measurement date cannot be in the future.");
       s.bodyEntries=[...(s.bodyEntries??[]).filter(e=>e.date!==c.entry.date),c.entry];
@@ -895,6 +916,11 @@ export function apply(
       }
       break;
     case "program":
+      for(const session of c.program.sessions) for(const item of session.exercises) if(item.exerciseId){
+        const entry=[...catalogue,...(s.customExercises??[])].find(e=>e.id===item.exerciseId);
+        if(!entry||entry.modality!=="strength")throw new Error("Choose a supported exercise");
+        item.name=entry.name;item.muscle=entry.primaryMuscles[0];item.increment=entry.increment;
+      }
       s.program = c.program;
       s.profile.days = new Set(c.program.weekdays).size;
       break;
@@ -990,7 +1016,12 @@ export function apply(
       s.workouts.push({
         id,
         date: c.date ?? day,
-        sets: c.sets,
+        sets: c.sets.map(set=>{
+          if(!set.exerciseId)return set;
+          const entry=[...catalogue,...(s.customExercises??[])].find(e=>e.id===set.exerciseId);
+          if(!entry||entry.modality!=="strength")throw new Error("Choose a supported exercise");
+          return {...set,exercise:entry.name,muscle:entry.primaryMuscles[0]};
+        }),
         effort: c.effort,
         status: c.status,
       });
@@ -1116,7 +1147,7 @@ export function apply(
       confidence: r.confidence,
     });
   }
-  return s;
+  return migrateExercises(s);
 }
 
 /** Validate a trusted account transfer before changing storage providers. */
@@ -1165,10 +1196,11 @@ export function validateSnapshot(value: unknown): State {
           sets: z.array(
             z.object({
               exercise: z.string(),
+              exerciseId: z.string().max(160).optional(),
               muscle: z.string(),
               reps: num(1, 100),
               load: num(0, 500),
-              rpe: num(1, 10),
+              rpe: num(1, 10).optional(),
             }),
           ),
           effort: z.string(),
@@ -1227,6 +1259,9 @@ export function validateSnapshot(value: unknown): State {
       ),
       onboarded: z.boolean(),
       program: programSchema.optional(),
+      customExercises: z.array(exerciseSchema).optional(),
+      exerciseMatches: z.array(z.object({legacyId:z.string(),name:z.string(),candidateId:z.string(),score:z.number()})).optional(),
+      exerciseCatalogueVersion: z.number().optional(),
       cart: cartSchema.optional(),
       bodyEntries: z.array(bodyEntrySchema).optional(),
       savedFoods: z.array(foodSchema).optional(),

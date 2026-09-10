@@ -1,0 +1,4 @@
+"use client";
+import templates from "@/lib/exercises/templates.json";
+import type {State,Command} from "@/lib/domain";
+export function TrainingTemplates({state,busy,act,onReady}:{state:State;busy:boolean;act:(c:Command,close?:boolean)=>Promise<boolean>;onReady:()=>void}){return <details className="panel small-space" open={!state.program&&!state.workouts.length}><summary>Start with a ready-made routine</summary><p className="muted">Choose a starting template, then adapt it to your experience and equipment. Loads are calibrated during logging.</p><div className="template-grid">{templates.map(program=><button className="secondary" key={program.name} disabled={busy} onClick={async()=>{if(await act({type:"program",program},false))onReady();}}><strong>{program.name}</strong><span>{program.weekdays.length} days · {program.sessions.length} sessions</span></button>)}</div></details>;}

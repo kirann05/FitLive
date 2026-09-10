@@ -10,7 +10,7 @@ export async function GET() {
   try {
     const u = await owner();
     if (!u) return response({ error: "Please sign in to continue." }, 401);
-    return response(await load(u));
+    return response({...(await load(u)),ownerId:u});
   } catch {
     return response(
       { error: "Your saved data is temporarily unavailable. Please retry." },
@@ -22,6 +22,7 @@ export async function POST(req: Request) {
   try {
     const u = await owner();
     if (!u) return response({ error: "Please sign in to continue." }, 401);
+    if(req.headers.has("X-FitLive-Owner") && req.headers.get("X-FitLive-Owner") !== u) return response({error:"Account changed. Reload before saving."},403);
     const origin = req.headers.get("origin");
     if (origin && origin !== new URL(req.url).origin)
       return response({ error: "Invalid request origin." }, 403);

@@ -1,4 +1,7 @@
 "use client";
+import {displayLoad} from "@/lib/load-units";
+import { ExercisePicker } from "./exercise-picker";
+import { catalogue } from "@/lib/exercises/catalogue";
 import { useState } from "react";
 import {
   Plus,
@@ -35,12 +38,12 @@ type Props = {
   act: (c: Command, close?: boolean) => Promise<boolean>;
 };
 const newExercise = (): Prescription => ({
-  name: "New exercise",
+  name: "",
   muscle: "Quads",
   sets: 3,
   minReps: 8,
   maxReps: 12,
-  load: 10,
+  load: 0,
   increment: 2.5,
 });
 export function ProgramEditor({ state, busy, act }: Props) {
@@ -87,7 +90,7 @@ export function ProgramEditor({ state, busy, act }: Props) {
           ? {
               ...s,
               exercises: s.exercises.map((x, k) =>
-                k === i ? { ...x, [key]: value } : x,
+                k === i ? { ...x, [key]: value, ...(key === "minReps" ? {maxReps:Math.max(x.maxReps,Number(value))} : {}) } : x,
               ),
             }
           : s,
@@ -115,6 +118,7 @@ export function ProgramEditor({ state, busy, act }: Props) {
           <form
             onSubmit={async (e) => {
               e.preventDefault();
+              if (program.sessions.some(s=>s.exercises.some(x=>!x.name))) return;
               if (await act({ type: "program", program }, false))
                 setOpen(false);
             }}
@@ -178,42 +182,7 @@ export function ProgramEditor({ state, busy, act }: Props) {
             </label>
             {program.sessions[session].exercises.map((x, i) => (
               <div className="program-exercise" key={i}>
-                <div className="form-grid">
-                  <label className="field">
-                    Exercise
-                    <input
-                      required
-                      value={x.name}
-                      onChange={(e) =>
-                        updateExercise(i, "name", e.target.value)
-                      }
-                    />
-                  </label>
-                  <label className="field">
-                    Muscle group
-                    <select
-                      value={x.muscle}
-                      onChange={(e) =>
-                        updateExercise(i, "muscle", e.target.value)
-                      }
-                    >
-                      {[
-                        "Quads",
-                        "Hamstrings",
-                        "Glutes",
-                        "Back",
-                        "Chest",
-                        "Shoulders",
-                        "Biceps",
-                        "Triceps",
-                        "Core",
-                        "Calves",
-                      ].map((m) => (
-                        <option key={m}>{m}</option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
+                <label className="field">Exercise<ExercisePicker state={state} value={x.name} act={act} onSelect={e=>setProgram(p=>({...p,sessions:p.sessions.map((s,j)=>j===session?{...s,exercises:s.exercises.map((v,k)=>k===i?{...v,name:e.name,exerciseId:e.id,muscle:e.primaryMuscles[0],minReps:e.minReps,maxReps:e.maxReps,increment:e.increment,load:0}:v)}:s)}))}/></label><p className="muted">{x.exerciseId ? `${x.muscle} · ${[...(state.customExercises??[]),...catalogue].find(e=>e.id===x.exerciseId)?.equipment??"equipment to confirm"}` : "Choose an exercise to fill its settings."}</p>
                 <div className="prescription-grid">
                   {(
                     [
@@ -226,20 +195,21 @@ export function ProgramEditor({ state, busy, act }: Props) {
                         max: 30,
                       },
                       { key: "load", label: "kg", min: 0, max: 300 },
-                      { key: "increment", label: "Step, kg", min: 0.5, max: 5 },
+
                     ] as const
                   ).map((f) => (
                     <label className="field" key={f.key}>
                       {f.label}
                       <input
                         type="number"
-                        required
+                        required={f.key !== "load"}
                         min={f.min}
                         max={f.max}
                         step={
-                          f.key === "load" || f.key === "increment" ? 0.5 : 1
+                          f.key === "load" ? 0.5 : 1
                         }
-                        value={x[f.key]}
+                        value={f.key === "load" && x.load === 0 ? "" : x[f.key]}
+                        placeholder={f.key === "load" ? "Choose at workout" : undefined}
                         onChange={(e) =>
                           updateExercise(i, f.key, Number(e.target.value))
                         }
@@ -678,7 +648,7 @@ export function Milestones({ state }: { state: State }) {
         <div className="metric-line" key={p.exercise}>
           <span>{p.exercise}</span>
           <strong>
-            {p.load} kg × {p.reps}
+            {displayLoad(p.load,state.preferences?.loadUnit??"kg")} {state.preferences?.loadUnit??"kg"} × {p.reps}
           </strong>
           <small>{p.date}</small>
         </div>
@@ -717,6 +687,7 @@ export function ProductPreferences({ state, busy, act }: Props) {
           <option value="dark">Dark</option>
         </select>
       </label>
+      <label className="field">Workout load units<select value={p.loadUnit??"kg"} disabled={busy} onChange={e=>void act({type:"preferences",preferences:{...p,loadUnit:e.target.value as "kg"|"lb"}},false)}><option value="lb">Pounds (lb)</option><option value="kg">Kilograms (kg)</option></select></label>
       <label className="consent">
         <Checkbox
           checked={p.aiConsent}

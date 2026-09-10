@@ -2,6 +2,15 @@
 import { BodyTrend } from "@/components/fitlive/body-trend";
 import type { FoodCandidate } from "@/lib/food-data";
 import { GroceryReview } from "@/components/fitlive/grocery-review";
+import {sameExercise} from "@/lib/exercises/catalogue";
+import {recordTrainingMetric} from "@/lib/training-metrics";
+import {enqueueWorkout,removeQueuedWorkout,clearQueuedWorkouts} from "@/lib/workout-queue";
+import {WorkoutSync} from "@/components/fitlive/workout-sync";
+import { TrainingTemplates } from "@/components/fitlive/training-templates";
+import { QuickSet } from "@/components/fitlive/quick-set";
+import { displayLoad } from "@/lib/load-units";
+import { ExerciseMatchReview } from "@/components/fitlive/exercise-picker";
+import { migrateExercises } from "@/lib/exercises/migration";
 import { DailyRecord } from "@/components/fitlive/daily-record";
 import { Dictation } from "@/components/fitlive/dictation";
 import { PhotoMeal } from "@/components/fitlive/photo-meal";
@@ -188,7 +197,9 @@ export default function Home({ ownerId, authMode, exploring = false }: { ownerId
     [modeConfirm, setModeConfirm] = useState<"demo" | "real" | null>(null),
     [draft, setDraft] = useState<SetLog[]>([]),
     [active, setActive] = useState(false),
-    [rest, setRest] = useState(0),
+    [repeatSession, setRepeatSession] = useState<ReturnType<typeof plan>|null>(null),
+    [rest, setRestRemaining] = useState(0),
+    [restEnd, setRestEnd] = useState(0),
     [chat, setChat] = useState(""),
     [foodQuery, setFoodQuery] = useState(""),
     [searching, setSearching] = useState(false),
@@ -199,6 +210,7 @@ export default function Home({ ownerId, authMode, exploring = false }: { ownerId
   useEffect(() => {
     document.documentElement.dataset.theme = s.preferences?.theme ?? "light";
   }, [s.preferences?.theme]);
+  const sessionStarted = useRef(0);
   const pending = useRef<{ key: string; id: string; version: number } | null>(
     null,
   );
@@ -221,7 +233,7 @@ export default function Home({ ownerId, authMode, exploring = false }: { ownerId
     }
   }, [pendingKey, exploring]);
   const reload = useCallback(async () => {
-    if (exploring) { setS(seed()); setLoading(false); return; }
+    if (exploring) { setS(migrateExercises(seed())); setLoading(false); return; }
     try {
       setError("");
       const r = await fetch("/api/state", { cache: "no-store" });
@@ -231,7 +243,7 @@ export default function Home({ ownerId, authMode, exploring = false }: { ownerId
         version: number;
       };
       if (!r.ok) throw new Error(d.error);
-      setS(d.state);
+      setS(migrateExercises(d.state));
       setVersion(d.version);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not load your data.");
@@ -270,15 +282,15 @@ export default function Home({ ownerId, authMode, exploring = false }: { ownerId
   useEffect(() => {
     if (active && !exploring) localStorage.setItem(draftKey, JSON.stringify(draft));
   }, [draft, active, draftKey, exploring]);
-  useEffect(() => {
-    if (rest <= 0) return;
-    const timer = setInterval(() => setRest((x) => Math.max(0, x - 1)), 1000);
-    return () => clearInterval(timer);
-  }, [rest]);
+  const restKey=draftKey+":rest-end";
+  function setRest(seconds:number){const end=seconds>0?Date.now()+seconds*1000:0;setRestEnd(end);setRestRemaining(seconds);if(!exploring){try{localStorage.setItem(restKey,String(end));}catch{}}}
+  useEffect(()=>{if(exploring)return;try{const end=Number(localStorage.getItem(restKey));if(Number.isFinite(end)&&end>Date.now())queueMicrotask(()=>setRestEnd(end));}catch{}},[restKey,exploring]);
+  useEffect(()=>{if(!restEnd)return;const update=()=>{const remaining=Math.max(0,Math.ceil((restEnd-Date.now())/1000));setRestRemaining(remaining);if(!remaining){setRestEnd(0);if(!exploring){try{localStorage.removeItem(restKey);}catch{}}navigator.vibrate?.([100,50,100]);if(typeof Notification!=="undefined"&&Notification.permission==="granted")new Notification("Rest complete",{body:"Your next set is ready when you are."});}};update();const timer=setInterval(update,500);return()=>clearInterval(timer);},[restEnd,restKey,exploring]);
   async function act(command: Command, close = true) {
     if (busy) return false;
     setBusy(true);
     setError("");
+    let queuedKey:string|undefined;
     try {
       if (exploring) {
         setS(apply(s, command, crypto.randomUUID(), version + 1));
@@ -296,9 +308,17 @@ export default function Home({ ownerId, authMode, exploring = false }: { ownerId
       } catch {
         /* Cloud saves still work when tab storage is unavailable. */
       }
+      if(command.type === "workout") {
+        const workoutCommand={...command,date:command.date??dateKey(new Date(),s.profile.timezone)};
+        const candidateKey=ownerId+"|"+operation.id;
+        await enqueueWorkout({key:candidateKey,owner:ownerId,id:operation.id,version:operation.version,mode:s.mode,command:workoutCommand,createdAt:Date.now()});
+        queuedKey=candidateKey;
+        command=workoutCommand;
+        if(!navigator.onLine){window.dispatchEvent(new Event("fitlive-workout-queued"));toast.success("Workout saved on this device. It will sync when connected.");pending.current=null;try{sessionStorage.removeItem(pendingKey);}catch{}return true;}
+      }
       const r = await fetch("/api/state", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-FitLive-Owner": ownerId },
         body: JSON.stringify({
           id: operation.id,
           version: operation.version,
@@ -320,11 +340,13 @@ export default function Home({ ownerId, authMode, exploring = false }: { ownerId
         }
         throw new Error(d.error);
       }
+      if(queuedKey) await removeQueuedWorkout(queuedKey);
+      if(command.type==="delete") await clearQueuedWorkouts(ownerId);
       pending.current = null;
       try {
         sessionStorage.removeItem(pendingKey);
       } catch {}
-      setS(d.state);
+      setS(migrateExercises(d.state));
       setVersion(d.version);
       if (close) setModal("");
       toast.success(
@@ -334,6 +356,7 @@ export default function Home({ ownerId, authMode, exploring = false }: { ownerId
       );
       return true;
     } catch (e) {
+      if(queuedKey){window.dispatchEvent(new Event("fitlive-workout-queued"));toast.success("Workout kept on this device. Sync will retry.");pending.current=null;try{sessionStorage.removeItem(pendingKey);}catch{}return true;}
       const message =
         e instanceof Error ? e.message : "Could not save. Please retry.";
       setError(message);
@@ -393,7 +416,7 @@ export default function Home({ ownerId, authMode, exploring = false }: { ownerId
     rec = recommendation(s),
     t = totals(s),
     day = dateKey(new Date(), s.profile.timezone),
-    workout = plan(s),
+    workout = repeatSession ?? plan(s),
     low = forecast(s).filter((p) => p.low),
     todayMeals = s.meals.filter((x) => x.date === day),
     todayWorkout = s.workouts.filter((w) => w.date === day);
@@ -403,6 +426,7 @@ export default function Home({ ownerId, authMode, exploring = false }: { ownerId
       s.pantry.some((p) => p.name === f.name && p.quantity > 0),
   );
   function startWorkout() {
+    sessionStarted.current=performance.now();
     setActive(true);
     setTab("Train");
   }
@@ -465,6 +489,7 @@ export default function Home({ ownerId, authMode, exploring = false }: { ownerId
           ))}
         </TabsList>
         <div className="page" id="main-content">
+          {!exploring&&<WorkoutSync owner={ownerId} onSynced={()=>void reload()}/>}
           {exploring && <aside className="explore-notice"><div><strong>You’re exploring FitLive</strong><p>Sample data · changes last only while this page stays open. Refreshing or leaving resets them. Sign in for your own saved workspace; exploration changes won’t transfer.</p></div><a className="primary" href="/login">Make it yours</a></aside>}
           {offline && (
             <div className="notice">
@@ -730,6 +755,9 @@ export default function Home({ ownerId, authMode, exploring = false }: { ownerId
                 </div>
               </TabsContent>
               <TabsContent value="Train">
+                <ExerciseMatchReview state={s} busy={busy} act={act}/>
+                <TrainingTemplates state={s} busy={busy} act={act} onReady={()=>{setRepeatSession(null);if(s.onboarded)startWorkout();else setModal("profile");}}/>
+                {s.workouts.length>0&&!active&&<button className="secondary small-space" onClick={()=>{const last=s.workouts.at(-1)!;const unique=last.sets.filter((x,i,a)=>a.findIndex(y=>(y.exerciseId??y.exercise)===(x.exerciseId??x.exercise))===i);setRepeatSession(unique.map(x=>({name:x.exercise,exerciseId:x.exerciseId,muscle:x.muscle,sets:last.sets.filter(y=>(y.exerciseId??y.exercise)===(x.exerciseId??x.exercise)).length,reps:"8–12",load:x.load,base:x.load,reason:"Repeat your previous session; adjust any set before logging."})));startWorkout();}}>Repeat last session</button>}
                 <ProgramEditor state={s} busy={busy} act={act} />
                 <div className="section-bar">
                   <div className="row">
@@ -762,7 +790,7 @@ export default function Home({ ownerId, authMode, exploring = false }: { ownerId
                         <div>
                           <h3>{x.name}</h3>
                           <p className="muted">
-                            {x.sets} × {x.reps} · {s.workouts.some(w => w.sets.some(set => set.exercise === x.name)) ? `${x.load} kg` : "Choose a comfortable starting load"} · {x.muscle}
+                            {x.sets} × {x.reps} · {s.workouts.some(w => w.sets.some(set => sameExercise(set,x.name,x.exerciseId))) ? `${displayLoad(x.load,s.preferences?.loadUnit??"kg")} ${s.preferences?.loadUnit??"kg"}` : "Choose a comfortable starting load"} · {x.muscle}
                           </p>
                           <p className="muted">{x.reason}</p>
                         </div>
@@ -793,8 +821,7 @@ export default function Home({ ownerId, authMode, exploring = false }: { ownerId
                             </summary>
                             {w.sets.map((x, i) => (
                               <p className="muted" key={i}>
-                                {x.exercise}: {x.reps} × {x.load} kg · RPE{" "}
-                                {x.rpe}
+                                {x.exercise}: {x.reps} × {x.load ? `${displayLoad(x.load,s.preferences?.loadUnit??"kg")} ${s.preferences?.loadUnit??"kg"}` : "bodyweight"} · RPE {x.rpe??"not recorded"}
                               </p>
                             ))}
                           </details>
@@ -821,21 +848,17 @@ export default function Home({ ownerId, authMode, exploring = false }: { ownerId
                           : "Ready when you are"}
                       </span>
                     </div>
-                    <SetForm
-                      workout={workout}
-                        history={s.workouts}
-                      onAdd={(x) => {
-                        setDraft([...draft, x]);
-                        setRest(90);
-                        toast.success("Set added to your device draft");
-                      }}
-                    />
+                    <div className="rest-controls" aria-live="polite">{rest>0?<><span>Rest · {Math.floor(rest/60)}:{String(rest%60).padStart(2,"0")}</span><button className="secondary" onClick={()=>setRest(0)}>Skip</button><button className="secondary" onClick={()=>setRest(rest+30)}>+30 sec</button></>:<span>Logging a set starts a 90-second rest.</span>}<button className="text-button" onClick={()=>{if(typeof Notification!=="undefined")void Notification.requestPermission().then(p=>toast(p==="granted"?"Timer alerts enabled":"Use the on-screen timer; alerts aren't enabled."));else toast("This browser supports the on-screen timer only.");}}>Enable timer alerts</button></div>
+                    <QuickSet act={act} workout={workout} state={s} draft={draft} owner={ownerId} onAdd={x=>{
+                      const at=draft.length;const next=[...draft,x];if(!exploring){try{localStorage.setItem(draftKey,JSON.stringify(next));}catch{toast.error("Device storage is unavailable. Keep this page open until you save online.");}}setDraft(next);setRest(90);
+                      toast.success(`Set ${at+1} logged`,{duration:5000,action:{label:"Undo",onClick:()=>setDraft(current=>current.filter(item=>item!==x))}});
+                    }}/>
                     {draft.length > 0 && (
                       <div className="set-table">
                         <div className="set-row table-head">
                           <span>Exercise</span>
                           <span>Reps</span>
-                          <span>kg</span>
+                          <span>{s.preferences?.loadUnit??"kg"}</span>
                           <span>RPE</span>
                           <span />
                         </div>
@@ -843,8 +866,8 @@ export default function Home({ ownerId, authMode, exploring = false }: { ownerId
                           <div className="set-row" key={i}>
                             <span>{x.exercise}</span>
                             <span>{x.reps}</span>
-                            <span>{x.load}</span>
-                            <span>{x.rpe}</span>
+                            <span>{x.load ? displayLoad(x.load,s.preferences?.loadUnit??"kg") : "Bodyweight"}</span>
+                            <span>{x.rpe??"—"}</span>
                             <button
                               aria-label={`Remove set ${i + 1}`}
                               onClick={() =>
@@ -870,8 +893,10 @@ export default function Home({ ownerId, authMode, exploring = false }: { ownerId
                             status: f.get("status") as "completed",
                           })
                         ) {
+                          recordTrainingMetric(ownerId,{kind:"session",taps:1,typed:false,elapsedMs:sessionStarted.current?performance.now()-sessionStarted.current:0,source:"manual"});
                           setDraft([]);
                           setActive(false);
+                          setRepeatSession(null);
                           localStorage.removeItem(draftKey);
                         }
                       }}
@@ -891,7 +916,7 @@ export default function Home({ ownerId, authMode, exploring = false }: { ownerId
                       </Field>
                       <button
                         className="primary"
-                        disabled={busy || !draft.length || offline}
+                        disabled={busy || !draft.length}
                       >
                         Save workout <Check />
                       </button>
@@ -1940,80 +1965,7 @@ function ProfileForm({
     </form>
   );
 }
-function SetForm({
-  workout,
-  history,
-  onAdd,
-}: {
-  history: State["workouts"];
-  workout: ReturnType<typeof plan>;
-  onAdd: (s: SetLog) => void;
-}) {
-  const [exercise, setExercise] = useState(workout[0].name);
-  const p = workout.find((x) => x.name === exercise) ?? workout[0];
-  return (
-    <form
-      className="set-form"
-      key={exercise}
-      onSubmit={(e) => {
-        e.preventDefault();
-        const f = new FormData(e.currentTarget);
-        onAdd({
-          exercise,
-          muscle: p.muscle,
-          reps: Number(f.get("reps")),
-          load: Number(f.get("load")),
-          rpe: Number(f.get("rpe")),
-        });
-      }}
-    >
-      <Field label="Exercise">
-        <select value={exercise} onChange={(e) => setExercise(e.target.value)}>
-          {workout.map((x) => (
-            <option key={x.name}>{x.name}</option>
-          ))}
-        </select>
-      </Field>
-      <Field label="Reps">
-        <input
-          name="reps"
-          type="number"
-          required
-          min="1"
-          max="100"
-          defaultValue={10}
-        />
-      </Field>
-      <Field label="Load (kg)">
-        <input
-          name="load"
-          type="number"
-          required
-          min="0"
-          max="500"
-          step="0.5"
-          placeholder="Choose a starting load"
-          defaultValue={history.some(w => w.sets.some(x => x.exercise === p.name)) ? p.load : undefined}
-        />
-      </Field>
-      <Field label="Effort (RPE)">
-        <input
-          name="rpe"
-          type="number"
-          required
-          min="1"
-          max="10"
-          step="0.5"
-          defaultValue={8}
-        />
-      </Field>
-      <button className="secondary">
-        <Plus />
-        Add set
-      </button>
-    </form>
-  );
-}
+
 function MealForm({
   food,
   state,
