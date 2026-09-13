@@ -25,3 +25,20 @@ See [the specification readiness audit](READINESS_AUDIT.md) for the current feat
 6. Run requested browser interaction/visual QA, native accessibility review, restore drills, load/latency testing and a security review before a broader release.
 
 No App Store/TestFlight submission, completed shared-backend deployment, automatic purchases, clinical validation, production SLA or measured AI accuracy is claimed. AWS resources were started within verified free-plan credits and are now being removed after the hosting-provider change.
+
+## 2026-09-13 — Native reader expansion: blocked, not implemented
+
+This dated ledger takes precedence over older general readiness statements above for this request.
+
+| Check | Simulator | Physical iPhone |
+|---|---|---|
+| Existing sleep/RHR/HRV reader | Prior unsigned build only; not a hardware result | Not verified in this task |
+| Xcode / signing gate | Full Xcode selected | Zero valid code-signing identities, confirmed outside sandbox |
+| HealthKit entitlement | Present in source | Signed provisioning entitlement not verified |
+| Steps, active energy, workouts, body mass | Not expanded | Blocked |
+| Persisted anchors / deletion recomputation | Not implemented | Kill/relaunch not tested |
+| Sleep / heart-rate background delivery | Not implemented | Morning delivery not tested |
+| Partial permission comparison across 3 days | No simulated samples introduced | Not performed |
+| Airplane-mode queue drain | Existing queue left unchanged | Not performed |
+
+To unblock: select an Apple Developer team for FitLive in Xcode, obtain a valid development signing certificate/provisioning profile with HealthKit, and connect/unlock a trusted physical iPhone. Health values must not be pasted into chat or logs. Hardware acceptance remains required; the existing permission-denied wording is unchanged.

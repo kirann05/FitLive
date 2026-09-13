@@ -1,0 +1,5 @@
+// Public provider records only; no user identity or meal records enter this cache.
+export const normalizedFoodQuery=(query:string)=>query.normalize('NFKC').trim().replace(/\s+/g,' ').toLowerCase();
+async function cacheKey(namespace:string,key:string){const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(key));return new Request(`https://fitlive-food-cache.invalid/${namespace}/${Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('')}`);}
+export async function readFoodCache<T>(namespace:string,key:string):Promise<T|null>{try{const cache=(caches as unknown as {default:Cache}).default;const hit=await cache.match(await cacheKey(namespace,key));return hit?await hit.json() as T:null;}catch{return null;}}
+export async function writeFoodCache(namespace:string,key:string,value:unknown,ttl:number){try{const cache=(caches as unknown as {default:Cache}).default;await cache.put(await cacheKey(namespace,key),Response.json(value,{headers:{'Cache-Control':`public, max-age=${ttl}`}}));}catch{/* Cache failure must not change lookup behavior. */}}

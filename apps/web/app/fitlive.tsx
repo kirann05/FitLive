@@ -1,4 +1,5 @@
 "use client";
+import {BarcodeFood} from "@/components/fitlive/barcode-food";
 import {Glance} from "@/components/fitlive/glance";
 import {InsightChart} from "@/components/fitlive/insight-chart";
 import {proteinSeries,sleepSeries,sessionSeries} from "@/lib/chart-data";
@@ -1408,6 +1409,7 @@ export default function Home({ ownerId, authMode, exploring = false }: { ownerId
         title="Log food, without the guesswork"
         description="Find a food, then confirm the portion and dietary details before saving."
       >
+        {!exploring&&<BarcodeFood onFound={food=>{setSelectedFood(food);setModal("portion");}} onManual={()=>{setSelectedFood(null);setModal("portion");}}/>}
         <div className="search-row">
           <input
             aria-label="Search foods"
@@ -1475,6 +1477,7 @@ export default function Home({ ownerId, authMode, exploring = false }: { ownerId
         description="Nutrients are per 100 g. Check the product label for ingredients and allergens."
       >
         <MealForm
+          key={selectedFood?.id??"manual-label"}
           food={selectedFood}
           state={s}
           busy={busy}
@@ -1887,7 +1890,7 @@ function MealForm({
   busy: boolean;
   onSave: (c: Command) => void;
 }) {
-  const [grams, setGrams] = useState(100);
+  const [grams, setGrams] = useState(food?.servingGrams&&food.servingGrams>=1&&food.servingGrams<=2000?food.servingGrams:100);
   return (
     <form
       onSubmit={(e) => {
@@ -1951,6 +1954,10 @@ function MealForm({
           />
         </Field>
       </div>
+      {food?.brand&&<p className="muted">Brand: {food.brand}</p>}
+      {food?.servingSize&&<p className="muted">Source serving: {food.servingSize}. Confirm how much you ate.</p>}
+      {food?.labelNote&&<p role="status">{food.labelNote}</p>}
+      {food?.source.startsWith("Open Food Facts")&&<p className="muted">Community-supplied label data can be incomplete or outdated. Check this package.</p>}
       {food?.ingredients && <p className="muted">Ingredients from source: {food.ingredients}</p>}
       <p className="muted">Any missing nutrient values must be confirmed from the label. A blank value is not zero.</p>
       <Field label="All allergens on label · comma separated">

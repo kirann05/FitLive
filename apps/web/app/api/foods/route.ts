@@ -1,3 +1,5 @@
+import {readFoodCache,writeFoodCache,normalizedFoodQuery} from "@/lib/food-cache";
+import type {FoodCandidate} from "@/lib/food-data";
 import { mapUsdaFood } from "@/lib/food-data";
 import { limit } from "@/lib/limits";
 import { env } from "cloudflare:workers";
@@ -27,6 +29,9 @@ export async function GET(req: Request) {
       { status: 503 },
     );
   try {
+    const cacheKey=normalizedFoodQuery(q);
+    const cached=await readFoodCache<FoodCandidate[]>("usda-v1",cacheKey);
+    if(cached)return Response.json({foods:cached},{headers:{"Cache-Control":"private, max-age=300"}});
     const r = await fetch(
       "https://api.nal.usda.gov/fdc/v1/foods/search?api_key=" +
         encodeURIComponent(key),
@@ -50,9 +55,11 @@ export async function GET(req: Request) {
         foodNutrients: { nutrientId: number; value: number }[];
       }[];
     };
+    const foods=result.foods.map(mapUsdaFood);
+    await writeFoodCache("usda-v1",cacheKey,foods,3600);
     return Response.json(
       {
-        foods: result.foods.map(mapUsdaFood),
+        foods,
       },
       { headers: { "Cache-Control": "private, max-age=300" } },
     );

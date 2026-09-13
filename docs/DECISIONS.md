@@ -39,3 +39,13 @@
 - Reason: A private Sites gateway is not an iPhone API credential. An independently hosted HTTPS Java API provides an authenticated mobile transport.
 - Trade-off: Backend cutover needs a validated bootstrap and careful legacy-store retirement; switching a configuration value back is not a data rollback.
 - Date: 2026-09-09.
+
+## 2026-09-13 — Barcode lookup alongside USDA
+
+OFF candidates reuse FoodCandidate and MealForm; the existing meal command remains the only save path. The product endpoint uses the supported v2 schema for the explicit `status: 0/1` contract and stable allergen-tag fields; v3 migration is a future adapter change. Missing nutrient values remain null, and source allergens plus traces require confirmation. Known liquid servings do not silently convert ml to grams. Provenance remains attached to the saved food.
+
+Cloudflare's server Cache API shares public candidate results across accounts within a data center: normalized USDA queries for one hour, found OFF products for 24 hours. It is best-effort, evictable and not globally replicated; misses safely call the provider. No health data or account identifiers are cached. Per-user limits run before cache access. The existing D1 limiter also enforces an app-wide OFF outbound budget of six requests per fixed minute (at most twelve in a rolling minute), below the documented fifteen product reads/minute/IP. Provider budget exhaustion returns 503, not a false not-found. No provider write calls occur.
+
+## 2026-09-13 — HealthKit expansion paused at signing gate
+
+Read H1, I1–I3, K1 and the existing iOS/shared reader, summary math, wire model and settings. Full Xcode is installed, and the HealthKit entitlement exists. The signing identity check, repeated outside the sandbox, reports zero valid identities. The user explicitly requires stopping when signing is unavailable. No native reader, permission UI, encrypted storage, consent, tombstone, revocation or replay implementation was changed. No source-priority rule is claimed as implemented. A deterministic per-type source selection rule must be settled and tested against physical Health data when signing is available.

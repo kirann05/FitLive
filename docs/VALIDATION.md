@@ -33,3 +33,29 @@ Web: commands in README, then `node apps/web/tests/api.integration.mjs` against 
 Native: compile `apps/shared/*.swift` and `tests/native-core.swift` with `xcrun swiftc`, then execute the binary. CI also attempts the unsigned combined app build on macOS.
 
 No production SLA, clinical accuracy, AI accuracy, retention outcome or latency percentile is claimed.
+
+## 2026-09-13 — Barcode path and USDA cache
+
+### Automated evidence
+
+69 web tests passed, including existing health replay tests. New cases cover the shared barcode route handler's 401/429/400/404/503 paths, app-wide provider budget, timeout, cache hits, descriptive User-Agent, OFF fixture mapping, null versus recorded zero, kJ conversion, serving units, allergen blocking through the existing policy, confirmed meal attribution, and normalized cross-account cache reuse. Type checking, lint and the production build pass. The existing large-client-chunk build warning remains.
+
+### Live provider reads (not physical camera scans)
+
+Read-only OFF v2 requests used the FitLive User-Agent with TLS verification enabled. The actual records were passed through mapOffFood. No meal was saved during verification.
+
+| Case | Barcode | Observed result |
+|---|---|---|
+| US product | 0016000275287 | `status: 1`, Cheerios, countries includes United States; per 100 g: 358.974 kcal, 12.821 g protein, 74.359 g carbs, 6.410 g fat, 10.256 g fiber; mapped serving 39 g; source `Open Food Facts · 0016000275287` |
+| Incomplete product | 0049000006346 | `status: 1`, Coca cola can cokes LG; fiber absent and mapped to null. Recorded protein/fat zero stayed zero. No grams-based serving was inferred from missing serving fields. |
+| Not found | 0051500255002 | `status: 0`, `product not found`; handled as 404 with manual-label fallback |
+
+Additional invalid all-zero control returned status 0 (`no code or invalid code`). An initial Python fetch failed certificate-chain validation; retried using the system curl trust store, without disabling TLS verification. No unsuccessful lookup is described as a successful scan.
+
+### Outstanding proof
+
+Physical camera scanning of three packages, camera permission denial on iPhone/Android, and an authenticated browser confirm-and-log round trip have **not** been verified. The rows above are provider-read/mapper evidence, not camera or hardware acceptance. BarcodeDetector support varies; manual number entry is always available in the signed-in food-add flow. No automatic logging path exists.
+
+The native expansion is stopped at the required signing gate. See RELEASE_STATUS.md for the explicit simulator/hardware ledger. Existing storage/consent/deletion/revocation code was not rebuilt.
+
+Runtime checks: the actual local `/api/foods/barcode` route returned HTTP 401 without a session. Java `DomainEngineTest` also passed. These do not substitute for the outstanding camera, authenticated browser and HealthKit hardware checks.
