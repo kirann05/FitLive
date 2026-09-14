@@ -59,3 +59,9 @@ Physical camera scanning of three packages, camera permission denial on iPhone/A
 The native expansion is stopped at the required signing gate. See RELEASE_STATUS.md for the explicit simulator/hardware ledger. Existing storage/consent/deletion/revocation code was not rebuilt.
 
 Runtime checks: the actual local `/api/foods/barcode` route returned HTTP 401 without a session. Java `DomainEngineTest` also passed. These do not substitute for the outstanding camera, authenticated browser and HealthKit hardware checks.
+
+## 2026-09-14 — Set corrections and HealthKit reader expansion
+
+73 web tests pass. Added coverage for voice weight/repetition corrections, bounds, old-session confirmation, stale revision rejection, edit/delete/undo state, preserved edited metadata, expanded nullable HealthKit fields and summary replay. Existing food and recovery tests remain passing. Type checking and lint pass; the production build retains its previously documented bundle-size warning.
+
+Native reader type-check and combined unsigned iPhone/Watch simulator build pass. Local HealthMath fixtures exercise missing data, steps/energy totals, workout duration, resting HR/HRV means and overlapping sleep intervals. No test fixtures enter HealthKit or the upload path. Java engine regression checks are also run. Physical swipe/hold behavior, Voice recognition accuracy, HealthKit permission behavior, hardware anchor persistence, source reconciliation and offline delivery are not certified by these checks. See RELEASE_STATUS.md and DECISIONS.md for the exact native limitations and source/window rules.

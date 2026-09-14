@@ -2,7 +2,7 @@
 import {displayLoad} from "@/lib/load-units";
 import { ExercisePicker } from "./exercise-picker";
 import { catalogue } from "@/lib/exercises/catalogue";
-import { useState } from "react";
+import { useState,useEffect } from "react";
 import {
   Plus,
   Check,
@@ -723,6 +723,12 @@ export function DevicePairing({ configured }: { configured: boolean }) {
     } | null>(null),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
+  const [device,setDevice]=useState<{active:boolean;lastSync:string|null;readableTypes:string[]}|null>(null);
+  const [issuedAt,setIssuedAt]=useState(0);
+  const [clock,setClock]=useState(()=>Date.now());
+  useEffect(()=>{if(!configured)return;let cancelled=false;const refresh=async()=>{try{const r=await fetch("/api/devices",{cache:"no-store"});if(!r.ok)throw new Error();const d=await r.json() as {active:boolean;lastSync:string|null;readableTypes:string[]};if(!cancelled){setDevice(d);setClock(Date.now());if(credential&&d.active&&Date.parse(d.lastSync??"")>issuedAt)setCredential(null);}}catch{if(!cancelled)setDevice(null);}};void refresh();const timer=setInterval(()=>void refresh(),15000);return()=>{cancelled=true;clearInterval(timer);};},[configured,credential,issuedAt]);
+  const latest=device?.active&&device.lastSync?device:null;
+  const pairing=credential&&Date.parse(credential.expires)>clock;
   async function pair() {
     setBusy(true);
     setError("");
@@ -739,7 +745,7 @@ export function DevicePairing({ configured }: { configured: boolean }) {
         error?: string;
       };
       if (!r.ok) throw new Error(d.error ?? "Could not pair this device.");
-      setCredential(d);
+      setIssuedAt(Date.now());setCredential(d);setDevice(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not pair.");
     } finally {
@@ -748,14 +754,16 @@ export function DevicePairing({ configured }: { configured: boolean }) {
   }
   return (
     <section className="panel">
-      <h3>Connect your iPhone</h3>
+      <h3>Apple Health · {pairing?"Pairing":latest?"Connected":"Not connected"}</h3>
+      {latest&&!credential&&<p>Last summary received: {new Date(latest.lastSync!).toLocaleString()}. Readable types: {latest.readableTypes?.join(", ")||"not reported by this reader"}. Read permission grants cannot be determined by HealthKit.</p>}
+      <p className="muted">Expanded reader: written, unverified on device.</p>
       <p className="small-space">
         {configured
           ? "Create a private pairing credential, then enter it in the native FitLive app. Creating a new credential revokes the previous one."
           : "Native account linking becomes available when the Java backend is configured."}
       </p>
       {error && <p role="alert">{error}</p>}
-      {credential && (
+      {pairing && credential && (
         <>
           <label className="field small-space">
             Server address
@@ -781,7 +789,7 @@ export function DevicePairing({ configured }: { configured: boolean }) {
           </button>
           <p className="muted small-space">
             Shown only now. Expires{" "}
-            {new Date(credential.expires).toLocaleDateString()}.
+            {new Date(credential.expires).toLocaleString()}.
           </p>
         </>
       )}
@@ -791,7 +799,7 @@ export function DevicePairing({ configured }: { configured: boolean }) {
           disabled={!configured || busy}
           onClick={() => void pair()}
         >
-          Create pairing credential
+          {credential?"Replace pairing code":latest?"Pair another iPhone":"Connect via iPhone"}
         </button>
         <button
           className="text-button danger"
@@ -799,7 +807,7 @@ export function DevicePairing({ configured }: { configured: boolean }) {
           onClick={async () => {
             const r = await fetch("/api/devices", { method: "DELETE" });
             if (r.ok) {
-              setCredential(null);
+              setCredential(null);setDevice(null);
               setError("Device access revoked.");
             } else setError("Could not revoke; please retry.");
           }}

@@ -14,7 +14,7 @@ export function migrateExercises(input:State):State {
   s.customExercises!.push(custom);seen.set(key,id);
   if(best)s.exerciseMatches!.push({legacyId:id,name,candidateId:best.exercise.id,score:best.score});return id;
  }
- for(const w of s.workouts)for(const set of w.sets)if(!set.exerciseId)set.exerciseId=identify(set.exercise,set.muscle);
+ for(const w of s.workouts)for(const [index,set] of w.sets.entries()){set.id??=`${w.id}:set:${index}`;if(!set.exerciseId)set.exerciseId=identify(set.exercise,set.muscle);}
  for(const session of s.program?.sessions??[])for(const e of session.exercises)if(!e.exerciseId)e.exerciseId=identify(e.name,e.muscle);
  s.exerciseMatches=s.exerciseMatches.filter(m=>{const original=s.customExercises!.find(e=>e.id===m.legacyId);const candidate=catalogue.find(e=>e.id===m.candidateId);return original&&candidate&&original.primaryMuscles.some(muscle=>candidate.primaryMuscles.includes(muscle));});
  s.exerciseCatalogueVersion=1;return s;

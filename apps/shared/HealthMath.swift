@@ -1,6 +1,8 @@
 import Foundation
 
 enum HealthMath {
+  static func sum(_ values: [Double]) -> Double? { values.isEmpty ? nil : values.reduce(0, +) }
+  static func mean(_ values: [Double]) -> Double? { guard let total = sum(values) else { return nil }; return total / Double(values.count) }
   /// Merges overlapping asleep intervals to avoid double counting stages and duplicate sources.
   static func unionSeconds(_ intervals: [(Date, Date)]) -> TimeInterval {
     let sorted = intervals.filter { $0.1 > $0.0 }.sorted { $0.0 < $1.0 }

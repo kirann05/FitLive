@@ -22,7 +22,14 @@ import {
 export type Health = {
   id: string;
   date: string;
-  sleep: number;
+  sleep: number | null;
+  steps?: number | null;
+  activeEnergy?: number | null;
+  workoutMinutes?: number | null;
+  workoutCount?: number | null;
+  bodyMass?: number | null;
+  stale?: boolean;
+  readableTypes?: string[];
   rhr: number | null;
   hrv: number | null;
   source: "demo" | "manual" | "HealthKit";
@@ -43,6 +50,8 @@ export type Profile = {
   consent: boolean;
 };
 export type SetLog = {
+  id?: string;
+  editedAt?: string;
   exerciseId?: string;
   exercise: string;
   reps: number;
@@ -51,6 +60,8 @@ export type SetLog = {
   muscle: string;
 };
 export type Workout = {
+  revision?: number;
+  recordedAt?: string;
   id: string;
   date: string;
   sets: SetLog[];
@@ -157,7 +168,9 @@ const calendarDate = z
       Number.isFinite(d.getTime()) && d.toISOString().slice(0, 10) === value
     );
   }, "Use a valid calendar date");
+const correctionSetSchema=z.object({id:z.string().max(160).optional(),exercise:z.string().min(1).max(100),exerciseId:z.string().max(160).optional(),muscle:z.string().max(50),reps:num(1,100).int(),load:num(0,500),rpe:num(1,10).optional(),editedAt:z.string().datetime().optional()});
 export const commandSchema = z.discriminatedUnion("type", [
+  z.object({type:z.literal("workout-correct"),id:z.string(),revision:z.number().int().min(0),sets:z.array(correctionSetSchema).max(80),confirmedOlder:z.boolean().optional(),status:z.enum(["completed","partial"]).optional()}),
   z.object({type:z.literal("body-entry"),entry:bodyEntrySchema}),
   z.object({type:z.literal("body-delete"),date:calendarDate}),
   z.object({type:z.literal("cart-preview"),items:cartItemsSchema}),
@@ -218,10 +231,12 @@ export const commandSchema = z.discriminatedUnion("type", [
         z.object({
           exercise: z.string().min(1).max(100),
           exerciseId: z.string().max(160).optional(),
+          id: z.string().max(160).optional(),
           muscle: z.string().max(50),
           reps: num(1, 100).int(),
           load: num(0, 500),
           rpe: num(1, 10).optional(),
+          editedAt: z.string().datetime().optional(),
         }),
       )
       .min(1)
@@ -256,7 +271,8 @@ export const commandSchema = z.discriminatedUnion("type", [
         z.object({
           id: z.string().min(1).max(120),
           date: calendarDate,
-          sleep: num(0, 1440),
+          sleep: num(0, 1440).nullable(),
+          steps:num(0,200000).nullable().optional(),activeEnergy:num(0,30000).nullable().optional(),workoutMinutes:num(0,1440).nullable().optional(),workoutCount:num(0,200).nullable().optional(),bodyMass:num(1,700).nullable().optional(),stale:z.boolean().optional(),readableTypes:z.array(z.string().max(60)).max(10).optional(),
           rhr: num(20, 250).nullable(),
           hrv: num(0, 500).nullable(),
           source: z.enum(["manual", "HealthKit"]),
@@ -489,19 +505,19 @@ export function recovery(s: State, now = new Date()) {
         ),
   );
   const baseline = {
-    sleep: mean(history.map((x) => x.sleep)),
+    sleep: mean(history.flatMap((x) => x.sleep===null?[]:[x.sleep])),
     rhr: mean(history.flatMap((x) => (x.rhr === null ? [] : [x.rhr]))),
     hrv: mean(history.flatMap((x) => (x.hrv === null ? [] : [x.hrv]))),
   };
   const check = s.checkins.find((x) => x.date === day);
   const stale =
-    !h ||
+    !h || h.stale===true ||
     now.getTime() - Date.parse(h.sampleAt) > 36 * 3600000 ||
     h.date !== day;
   const rules: string[] = [];
   const reasons: string[] = [];
   if (h && !stale && history.length >= 7) {
-    if (baseline.sleep !== null && h.sleep < baseline.sleep - 60) {
+    if (h.sleep!==null && baseline.sleep !== null && h.sleep < baseline.sleep - 60) {
       rules.push("SLEEP_BELOW_BASELINE");
       reasons.push("Sleep was more than an hour below your recent baseline.");
     }
@@ -520,7 +536,7 @@ export function recovery(s: State, now = new Date()) {
   }
   const reduced = rules.length >= 2;
   const confidence =
-    stale || history.length < 7
+    stale || h?.sleep===null || history.length < 7
       ? "Low"
       : history.length >= 21 && h?.hrv !== null && check
         ? "Medium"
@@ -1010,12 +1026,25 @@ export function apply(
       s.checkins = s.checkins.filter((x) => x.date !== day);
       s.checkins.push({ date: day, ...c });
       break;
+    case "workout-correct": {
+      const workout=s.workouts.find(w=>w.id===c.id);
+      if(!workout)throw new Error("Workout not found.");
+      if((workout.revision??0)!==c.revision)throw new Error("This session changed. Refresh before correcting it.");
+      const recorded=workout.recordedAt?Date.parse(workout.recordedAt):Date.parse(workout.date+"T00:00:00Z");
+      if(now.getTime()-recorded>86400000&&!c.confirmedOlder)throw new Error("Confirm correction of this older session.");
+      workout.sets=c.sets.map(set=>workout.sets.some(previous=>JSON.stringify(set)===JSON.stringify(previous))?set:{...set,editedAt:now.toISOString()});
+      workout.revision=(workout.revision??0)+1;
+      workout.status=workout.sets.length?(c.status??workout.status):"partial";
+      break;
+    }
     case "workout":
       if (c.date && c.date > day)
         throw new Error("Workout date cannot be in the future.");
       s.workouts.push({
         id,
         date: c.date ?? day,
+        recordedAt: now.toISOString(),
+        revision: 0,
         sets: c.sets.map(set=>{
           if(!set.exerciseId)return set;
           const entry=[...catalogue,...(s.customExercises??[])].find(e=>e.id===set.exerciseId);
@@ -1172,7 +1201,8 @@ export function validateSnapshot(value: unknown): State {
         z.object({
           id: z.string(),
           date: calendarDate,
-          sleep: num(0, 1440),
+          sleep: num(0, 1440).nullable(),
+          steps:num(0,200000).nullable().optional(),activeEnergy:num(0,30000).nullable().optional(),workoutMinutes:num(0,1440).nullable().optional(),workoutCount:num(0,200).nullable().optional(),bodyMass:num(1,700).nullable().optional(),stale:z.boolean().optional(),readableTypes:z.array(z.string().max(60)).max(10).optional(),
           rhr: num(20, 250).nullable(),
           hrv: num(0, 500).nullable(),
           source: z.enum(["demo", "manual", "HealthKit"]),
@@ -1193,14 +1223,18 @@ export function validateSnapshot(value: unknown): State {
         z.object({
           id: z.string(),
           date: calendarDate,
+          recordedAt: z.string().datetime().optional(),
+          revision: z.number().int().min(0).optional(),
           sets: z.array(
             z.object({
               exercise: z.string(),
               exerciseId: z.string().max(160).optional(),
+          id: z.string().max(160).optional(),
               muscle: z.string(),
               reps: num(1, 100),
               load: num(0, 500),
               rpe: num(1, 10).optional(),
+          editedAt: z.string().datetime().optional(),
             }),
           ),
           effort: z.string(),

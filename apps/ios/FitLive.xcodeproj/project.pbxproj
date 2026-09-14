@@ -268,7 +268,7 @@
 				CODE_SIGN_ENTITLEMENTS = FitLive/FitLive.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "FitLive reads sleep, resting heart rate and HRV to explain your daily training context.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "FitLive reads sleep, resting heart rate, HRV, steps, active energy, workouts and body mass to explain your daily context.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "FitLive does not write health records.";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -437,7 +437,7 @@
 				CODE_SIGN_ENTITLEMENTS = FitLive/FitLive.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "FitLive reads sleep, resting heart rate and HRV to explain your daily training context.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "FitLive reads sleep, resting heart rate, HRV, steps, active energy, workouts and body mass to explain your daily context.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "FitLive does not write health records.";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				LD_RUNPATH_SEARCH_PATHS = (

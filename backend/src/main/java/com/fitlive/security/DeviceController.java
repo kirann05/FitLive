@@ -12,6 +12,7 @@ public class DeviceController {
  private final DeviceAuthService devices;private final StateService state;
  public DeviceController(DeviceAuthService devices,StateService state){this.devices=devices;this.state=state;}
  private void bridge(Authentication auth){if(auth.getAuthorities().stream().noneMatch(a->a.getAuthority().equals("ROLE_BRIDGE")))throw new ResponseStatusException(HttpStatus.FORBIDDEN);}
+ @GetMapping public Map<String,Boolean> status(Authentication auth){bridge(auth);return Map.of("active",devices.active(auth.getName()));}
  @PostMapping public Map<String,Object> create(Authentication auth)throws Exception{bridge(auth);var s=(JsonNode)state.load(auth.getName()).get("state");if(!s.path("profile").path("consent").asBoolean()||!s.path("mode").asText().equals("real"))throw new ResponseStatusException(HttpStatus.CONFLICT,"Create a consented real workspace first");return devices.create(auth.getName());}
  @DeleteMapping public Map<String,Boolean> revoke(Authentication auth){bridge(auth);devices.revoke(auth.getName());return Map.of("revoked",true);}
 }

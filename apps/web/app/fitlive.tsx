@@ -1,4 +1,6 @@
 "use client";
+import {EditableSet} from "@/components/fitlive/editable-set";
+import {parseSetCorrection} from "@/lib/gym-speech";
 import {BarcodeFood} from "@/components/fitlive/barcode-food";
 import {Glance} from "@/components/fitlive/glance";
 import {InsightChart} from "@/components/fitlive/insight-chart";
@@ -42,7 +44,6 @@ import {
   Utensils,
   TrendingUp,
   MessageCircle,
-  Heart,
   Settings,
   Sun,
   Plus,
@@ -205,6 +206,7 @@ export default function Home({ ownerId, authMode, exploring = false }: { ownerId
     [foodQuery, setFoodQuery] = useState(""),
     [searching, setSearching] = useState(false),
     [searchResults, setSearchResults] = useState<FoodCandidate[]>([]),
+    [voiceCorrection,setVoiceCorrection]=useState<{revision:number;targetId?:string;patch:{load?:number;reps?:number}}>(),
     [selectedFood, setSelectedFood] = useState<FoodCandidate | null>(null),
     [foodError, setFoodError] = useState(""),
     [pantryEdit, setPantryEdit] = useState<Pantry | null>(null);
@@ -271,7 +273,7 @@ export default function Home({ ownerId, authMode, exploring = false }: { ownerId
         if (saved) {
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed)) {
-            setDraft(parsed);
+            setDraft(parsed.map((set:SetLog)=>({...set,id:set.id??crypto.randomUUID()})));
             setActive(true);
           }
         }
@@ -729,11 +731,8 @@ export default function Home({ ownerId, authMode, exploring = false }: { ownerId
                                 {w.sets.length} sets · {w.status}
                               </span>
                             </summary>
-                            {w.sets.map((x, i) => (
-                              <p className="muted" key={i}>
-                                {x.exercise}: {x.reps} × {x.load ? `${displayLoad(x.load,s.preferences?.loadUnit??"kg")} ${s.preferences?.loadUnit??"kg"}` : "bodyweight"} · RPE {x.rpe??"not recorded"}
-                              </p>
-                            ))}
+                            <p className="muted">Hold a set or swipe left to correct · keyboard Shift F10</p>
+                            {w.sets.map((x,i)=><EditableSet key={x.id??`${w.id}:${i}`} set={x} unit={s.preferences?.loadUnit??"kg"} disabled={busy} older={Date.now()-Date.parse(w.recordedAt??w.date+"T00:00:00Z")>86400000} onChange={async next=>{const before=w.sets;const sets=next?before.map((item,j)=>j===i?next:item):before.filter((_,j)=>j!==i);if(!await act({type:"workout-correct",id:w.id,revision:w.revision??0,sets,confirmedOlder:true},false))return false;toast.success(next?"Set corrected":"Set deleted",{duration:5000,action:{label:"Undo",onClick:()=>void act({type:"workout-correct",id:w.id,revision:(w.revision??0)+1,sets:before,status:w.status,confirmedOlder:true},false)}});return true;}}/>)}
                           </details>
                         ))
                     ) : (
@@ -759,8 +758,8 @@ export default function Home({ ownerId, authMode, exploring = false }: { ownerId
                       </span>
                     </div>
                     {draft.length>0&&<p key={`logged-${draft.length}`} className="set-saved-status"><Check size={16}/> Set {draft.length} logged</p>}<div className="rest-controls" aria-live="polite">{rest>0?<><span>Rest · {Math.floor(rest/60)}:{String(rest%60).padStart(2,"0")}</span><button className="secondary" onClick={()=>setRest(0)}>Skip</button><button className="secondary" onClick={()=>setRest(rest+30)}>+30 sec</button></>:<span>Logging a set starts a 90-second rest.</span>}<button className="text-button" onClick={()=>{if(typeof Notification!=="undefined")void Notification.requestPermission().then(p=>toast(p==="granted"?"Timer alerts enabled":"Use the on-screen timer; alerts aren't enabled."));else toast("This browser supports the on-screen timer only.");}}>Enable timer alerts</button></div>
-                    <QuickSet act={act} workout={workout} state={s} draft={draft} owner={ownerId} onAdd={x=>{
-                      const at=draft.length;const next=[...draft,x];if(!exploring){try{localStorage.setItem(draftKey,JSON.stringify(next));}catch{toast.error("Device storage is unavailable. Keep this page open until you save online.");}}setDraft(next);setRest(90);
+                    <QuickSet onCorrection={patch=>draft.length?setVoiceCorrection({revision:Date.now(),targetId:draft.at(-1)?.id,patch}):toast("Log a set before correcting it.")} act={act} workout={workout} state={s} draft={draft} owner={ownerId} onAdd={x=>{
+                      x={...x,id:x.id??crypto.randomUUID()};const at=draft.length;const next=[...draft,x];if(!exploring){try{localStorage.setItem(draftKey,JSON.stringify(next));}catch{toast.error("Device storage is unavailable. Keep this page open until you save online.");}}setDraft(next);setRest(90);
                       toast.success(`Set ${at+1} logged`,{duration:5000,action:{label:"Undo",onClick:()=>setDraft(current=>current.filter(item=>item!==x))}});
                     }}/>
                     {draft.length > 0 && (
@@ -772,22 +771,9 @@ export default function Home({ ownerId, authMode, exploring = false }: { ownerId
                           <span>RPE</span>
                           <span />
                         </div>
-                        {draft.map((x, i) => (
-                          <div className="set-row" key={i}>
-                            <span>{x.exercise}</span>
-                            <span>{x.reps}</span>
-                            <span>{x.load ? displayLoad(x.load,s.preferences?.loadUnit??"kg") : "Bodyweight"}</span>
-                            <span>{x.rpe??"—"}</span>
-                            <button
-                              aria-label={`Remove set ${i + 1}`}
-                              onClick={() =>
-                                setDraft(draft.filter((_, j) => j !== i))
-                              }
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        ))}
+                        <p className="muted">Hold a set or swipe left to correct · keyboard Shift F10</p>
+                        <Dictation onText={text=>{const patch=parseSetCorrection(text,s.preferences?.loadUnit??"kg");if(patch)setVoiceCorrection({revision:Date.now(),targetId:draft.at(-1)?.id,patch});else toast("Try ‘no wait, that was sixty’ or ‘fix that to eight reps’.");}}/>
+                        {draft.map((x,i)=><EditableSet key={x.id??i} set={x} voice={x.id===voiceCorrection?.targetId?voiceCorrection:undefined} unit={s.preferences?.loadUnit??"kg"} onChange={async next=>{const before=draft;const updated=next?draft.map((item,j)=>j===i?{...next,editedAt:new Date().toISOString()}:item):draft.filter((_,j)=>j!==i);setDraft(updated);toast.success(next?"Set corrected":"Set deleted",{duration:5000,action:{label:"Undo",onClick:()=>setDraft(current=>{if(current!==updated){toast.error("Newer changes exist. Correct the set again to keep them.");return current;}return before;})}});return true;}}/>)}
                       </div>
                     )}
                     <form
@@ -1565,18 +1551,7 @@ export default function Home({ ownerId, authMode, exploring = false }: { ownerId
         title="Connections & data sources"
         description="Only active connections are shown as connected."
       >
-        <DevicePairing configured={connections.native} />
-        <div className="connection">
-          <Heart />
-          <div>
-            <h3>Apple Health</h3>
-            <p>
-              {s.health.some((h) => h.source === "HealthKit")
-                ? "Apple Health summaries received. The latest sync time is shown in your recovery details."
-                : "No Apple Health summaries received yet. Pair the iPhone app and grant Health access to sync."}
-            </p>
-          </div>
-        </div>
+        <DevicePairing configured={connections.native}/>
         <div className="connection">
           <Utensils />
           <div>

@@ -18731,7 +18731,10 @@ var FitLiveDomain = (() => {
       if (best) s.exerciseMatches.push({ legacyId: id, name, candidateId: best.exercise.id, score: best.score });
       return id;
     }
-    for (const w of s.workouts) for (const set of w.sets) if (!set.exerciseId) set.exerciseId = identify(set.exercise, set.muscle);
+    for (const w of s.workouts) for (const [index, set] of w.sets.entries()) {
+      set.id ??= `${w.id}:set:${index}`;
+      if (!set.exerciseId) set.exerciseId = identify(set.exercise, set.muscle);
+    }
     for (const session of s.program?.sessions ?? []) for (const e of session.exercises) if (!e.exerciseId) e.exerciseId = identify(e.name, e.muscle);
     s.exerciseMatches = s.exerciseMatches.filter((m) => {
       const original = s.customExercises.find((e) => e.id === m.legacyId);
@@ -18961,7 +18964,9 @@ var FitLiveDomain = (() => {
     const d = /* @__PURE__ */ new Date(value + "T12:00:00Z");
     return Number.isFinite(d.getTime()) && d.toISOString().slice(0, 10) === value;
   }, "Use a valid calendar date");
+  var correctionSetSchema = external_exports.object({ id: external_exports.string().max(160).optional(), exercise: external_exports.string().min(1).max(100), exerciseId: external_exports.string().max(160).optional(), muscle: external_exports.string().max(50), reps: num(1, 100).int(), load: num(0, 500), rpe: num(1, 10).optional(), editedAt: external_exports.string().datetime().optional() });
   var commandSchema = external_exports.discriminatedUnion("type", [
+    external_exports.object({ type: external_exports.literal("workout-correct"), id: external_exports.string(), revision: external_exports.number().int().min(0), sets: external_exports.array(correctionSetSchema).max(80), confirmedOlder: external_exports.boolean().optional(), status: external_exports.enum(["completed", "partial"]).optional() }),
     external_exports.object({ type: external_exports.literal("body-entry"), entry: bodyEntrySchema }),
     external_exports.object({ type: external_exports.literal("body-delete"), date: calendarDate }),
     external_exports.object({ type: external_exports.literal("cart-preview"), items: cartItemsSchema }),
@@ -19021,10 +19026,12 @@ var FitLiveDomain = (() => {
         external_exports.object({
           exercise: external_exports.string().min(1).max(100),
           exerciseId: external_exports.string().max(160).optional(),
+          id: external_exports.string().max(160).optional(),
           muscle: external_exports.string().max(50),
           reps: num(1, 100).int(),
           load: num(0, 500),
-          rpe: num(1, 10).optional()
+          rpe: num(1, 10).optional(),
+          editedAt: external_exports.string().datetime().optional()
         })
       ).min(1).max(80),
       effort: external_exports.enum(["About right", "Too hard", "Too easy"]),
@@ -19056,7 +19063,14 @@ var FitLiveDomain = (() => {
         external_exports.object({
           id: external_exports.string().min(1).max(120),
           date: calendarDate,
-          sleep: num(0, 1440),
+          sleep: num(0, 1440).nullable(),
+          steps: num(0, 2e5).nullable().optional(),
+          activeEnergy: num(0, 3e4).nullable().optional(),
+          workoutMinutes: num(0, 1440).nullable().optional(),
+          workoutCount: num(0, 200).nullable().optional(),
+          bodyMass: num(1, 700).nullable().optional(),
+          stale: external_exports.boolean().optional(),
+          readableTypes: external_exports.array(external_exports.string().max(60)).max(10).optional(),
           rhr: num(20, 250).nullable(),
           hrv: num(0, 500).nullable(),
           source: external_exports.enum(["manual", "HealthKit"]),
@@ -19278,16 +19292,16 @@ var FitLiveDomain = (() => {
       )
     );
     const baseline = {
-      sleep: mean(history.map((x) => x.sleep)),
+      sleep: mean(history.flatMap((x) => x.sleep === null ? [] : [x.sleep])),
       rhr: mean(history.flatMap((x) => x.rhr === null ? [] : [x.rhr])),
       hrv: mean(history.flatMap((x) => x.hrv === null ? [] : [x.hrv]))
     };
     const check = s.checkins.find((x) => x.date === day);
-    const stale = !h || now.getTime() - Date.parse(h.sampleAt) > 36 * 36e5 || h.date !== day;
+    const stale = !h || h.stale === true || now.getTime() - Date.parse(h.sampleAt) > 36 * 36e5 || h.date !== day;
     const rules = [];
     const reasons = [];
     if (h && !stale && history.length >= 7) {
-      if (baseline.sleep !== null && h.sleep < baseline.sleep - 60) {
+      if (h.sleep !== null && baseline.sleep !== null && h.sleep < baseline.sleep - 60) {
         rules.push("SLEEP_BELOW_BASELINE");
         reasons.push("Sleep was more than an hour below your recent baseline.");
       }
@@ -19305,7 +19319,7 @@ var FitLiveDomain = (() => {
       reasons.push("Your check-in suggests leaving a little more in reserve.");
     }
     const reduced = rules.length >= 2;
-    const confidence = stale || history.length < 7 ? "Low" : history.length >= 21 && h?.hrv !== null && check ? "Medium" : "Low";
+    const confidence = stale || h?.sleep === null || history.length < 7 ? "Low" : history.length >= 21 && h?.hrv !== null && check ? "Medium" : "Low";
     if (stale)
       reasons.push(
         "Current health data is missing or stale; no wearable-based adjustment is applied."
@@ -19679,12 +19693,25 @@ var FitLiveDomain = (() => {
         s.checkins = s.checkins.filter((x) => x.date !== day);
         s.checkins.push({ date: day, ...c });
         break;
+      case "workout-correct": {
+        const workout = s.workouts.find((w) => w.id === c.id);
+        if (!workout) throw new Error("Workout not found.");
+        if ((workout.revision ?? 0) !== c.revision) throw new Error("This session changed. Refresh before correcting it.");
+        const recorded = workout.recordedAt ? Date.parse(workout.recordedAt) : Date.parse(workout.date + "T00:00:00Z");
+        if (now.getTime() - recorded > 864e5 && !c.confirmedOlder) throw new Error("Confirm correction of this older session.");
+        workout.sets = c.sets.map((set) => workout.sets.some((previous) => JSON.stringify(set) === JSON.stringify(previous)) ? set : { ...set, editedAt: now.toISOString() });
+        workout.revision = (workout.revision ?? 0) + 1;
+        workout.status = workout.sets.length ? c.status ?? workout.status : "partial";
+        break;
+      }
       case "workout":
         if (c.date && c.date > day)
           throw new Error("Workout date cannot be in the future.");
         s.workouts.push({
           id,
           date: c.date ?? day,
+          recordedAt: now.toISOString(),
+          revision: 0,
           sets: c.sets.map((set) => {
             if (!set.exerciseId) return set;
             const entry = [...catalogue, ...s.customExercises ?? []].find((e) => e.id === set.exerciseId);
@@ -19830,7 +19857,14 @@ var FitLiveDomain = (() => {
         external_exports.object({
           id: external_exports.string(),
           date: calendarDate,
-          sleep: num(0, 1440),
+          sleep: num(0, 1440).nullable(),
+          steps: num(0, 2e5).nullable().optional(),
+          activeEnergy: num(0, 3e4).nullable().optional(),
+          workoutMinutes: num(0, 1440).nullable().optional(),
+          workoutCount: num(0, 200).nullable().optional(),
+          bodyMass: num(1, 700).nullable().optional(),
+          stale: external_exports.boolean().optional(),
+          readableTypes: external_exports.array(external_exports.string().max(60)).max(10).optional(),
           rhr: num(20, 250).nullable(),
           hrv: num(0, 500).nullable(),
           source: external_exports.enum(["demo", "manual", "HealthKit"]),
@@ -19851,14 +19885,18 @@ var FitLiveDomain = (() => {
         external_exports.object({
           id: external_exports.string(),
           date: calendarDate,
+          recordedAt: external_exports.string().datetime().optional(),
+          revision: external_exports.number().int().min(0).optional(),
           sets: external_exports.array(
             external_exports.object({
               exercise: external_exports.string(),
               exerciseId: external_exports.string().max(160).optional(),
+              id: external_exports.string().max(160).optional(),
               muscle: external_exports.string(),
               reps: num(1, 100),
               load: num(0, 500),
-              rpe: num(1, 10).optional()
+              rpe: num(1, 10).optional(),
+              editedAt: external_exports.string().datetime().optional()
             })
           ),
           effort: external_exports.string(),

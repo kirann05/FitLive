@@ -1,5 +1,5 @@
 import { javaBackend, javaRequest } from "@/lib/java-backend";
-import { db, owner } from "@/lib/storage";
+import { db, owner, load } from "@/lib/storage";
 export const dynamic = "force-dynamic";
 export async function POST(req: Request) {
   const u = await owner();
@@ -47,4 +47,13 @@ export async function DELETE(req: Request) {
   }
   await db().prepare("DELETE FROM device_tokens WHERE owner=?").bind(u).run();
   return Response.json({ revoked: true });
+}
+
+export async function GET(){
+ const u=await owner();if(!u)return Response.json({error:"Sign in required."},{status:401});
+ try{
+ const active=javaBackend()?((await javaRequest(u,"/api/devices","GET")) as {active:boolean}).active:!!await db().prepare("SELECT 1 FROM device_tokens WHERE owner=? AND expires>?").bind(u,new Date().toISOString()).first();
+ const {state}=await load(u);const latest=[...state.health].filter(h=>h.source==="HealthKit").sort((a,b)=>b.syncAt.localeCompare(a.syncAt))[0];
+ return Response.json({active,lastSync:latest?.syncAt??null,readableTypes:latest?.readableTypes??[]},{headers:{"Cache-Control":"no-store"}});
+ }catch{return Response.json({error:"Connection status unavailable."},{status:503});}
 }

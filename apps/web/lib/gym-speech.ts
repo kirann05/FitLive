@@ -6,3 +6,11 @@ export function parseSetSpeech(text:string,unit:LoadUnit):{kind:"set";kg:number;
  const match=s.match(/^(.+?)\s+(?:(pounds?|lbs?|kilos?|kilograms?|kg)\s+)?(?:for|by|x|×)\s+(.+)$/);if(!match)return null;
  const load=spokenNumber(match[1]),reps=spokenNumber(match[3]);if(load===null||reps===null||!Number.isInteger(reps)||reps<1||reps>100)return null;const selected=match[2]?/pound|lb/.test(match[2])?"lb":"kg":unit;const kg=toKg(load,selected);if(kg<.5||kg>500)return null;return {kind:"set",kg,reps};
 }
+
+export function parseSetCorrection(text:string,unit:LoadUnit):{load?:number;reps?:number}|null {
+ const s=text.toLowerCase().trim().replace(/[.!?]+$/,'');
+ const reps=s.match(/^(?:fix that to|no wait[,]? that was) (.+?) reps?$/);
+ if(reps){const n=spokenNumber(reps[1]);return n!==null&&Number.isInteger(n)&&n>=1&&n<=100?{reps:n}:null;}
+ const load=s.match(/^(?:no wait[,]? that was|fix that to) (.+?)(?: (kg|kilos?|kilograms?|lb|lbs|pounds?))?$/);
+ if(!load)return null;const n=spokenNumber(load[1]);if(n===null)return null;const kg=toKg(n,load[2]?/^(kg|kilo)/.test(load[2])?'kg':'lb':unit);return kg>=0&&kg<=500?{load:kg}:null;
+}

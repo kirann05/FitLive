@@ -42,3 +42,20 @@ This dated ledger takes precedence over older general readiness statements above
 | Airplane-mode queue drain | Existing queue left unchanged | Not performed |
 
 To unblock: select an Apple Developer team for FitLive in Xcode, obtain a valid development signing certificate/provisioning profile with HealthKit, and connect/unlock a trusted physical iPhone. Health values must not be pasted into chat or logs. Hardware acceptance remains required; the existing permission-denied wording is unchanged.
+
+## 2026-09-14 — Code-only native expansion (supersedes signing stop for implementation)
+
+**Written, unverified on device.** Added steps, active energy, workouts and body mass; individual HealthKit type requests; protected persisted anchors/raw cache; deterministic changed-day summaries; deletion staleness; nullable sleep; and readable-type metadata. Existing upload queue and storage privacy controls are reused.
+
+| Verification | Result |
+|---|---|
+| Reader type check against iPhone Simulator SDK | Passed |
+| Combined iPhone/Watch unsigned simulator build | Passed with destination-based SDK selection |
+| Initial explicit `-sdk iphonesimulator` combined build | Failed because that override applied the iPhone SDK to Watch assets; corrected destination-based build passed |
+| Local arithmetic fixtures | Passed, synthetic test inputs only; no HealthKit reads or uploads |
+| Physical iPhone install / per-type consent | Not performed |
+| Three-day comparison with Health | Not performed |
+| Hardware anchor persistence / deletion / airplane-mode retry | Not performed |
+| Background morning delivery | Not implemented in this pass |
+
+The card displays received data types, not inferred permission grants. Web gesture behavior still needs touch-device acceptance testing. Signing and physical-device tests remain release requirements; an unsigned build is not an installation or HealthKit test.

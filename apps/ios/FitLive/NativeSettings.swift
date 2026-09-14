@@ -35,7 +35,7 @@ struct NativeSettings: View {
         if account.connected {
           Section("Apple Health") {
             Text(
-              "Read sleep, resting heart rate and HRV for your personal baseline. FitLive never writes to Apple Health."
+              "Written, unverified on device. Read sleep, resting heart rate, HRV, steps, active energy, workouts and body mass with individual permission requests. FitLive never writes to Apple Health."
             )
             Toggle("Send these summaries to my FitLive account", isOn: $healthConsent)
             Button(healthBusy ? "Reading Health…" : "Connect & sync Health") {

@@ -7,11 +7,11 @@ export function weeklyReview(s:State, now=new Date()) {
  const completedDays=new Set(workouts.filter(w=>w.status==="completed").map(w=>w.date));
  const planned=days.filter(d=>s.program?.weekdays.includes(new Date(d+"T12:00:00Z").getUTCDay()));
  const foodDays=days.filter(d=>s.meals.some(m=>m.date===d));
- const sleep=s.health.filter(h=>days.includes(h.date));
- const priorSleep=s.health.filter(h=>priorDays.includes(h.date));
+ const sleep=s.health.filter(h=>days.includes(h.date)&&h.sleep!==null);
+ const priorSleep=s.health.filter(h=>priorDays.includes(h.date)&&h.sleep!==null);
  const avg=(v:number[])=>v.length?v.reduce((a,b)=>a+b,0)/v.length:null;
- const meanSleep=avg(sleep.map(h=>h.sleep));
- const previousSleep=avg(priorSleep.map(h=>h.sleep));
+ const meanSleep=avg(sleep.flatMap(h=>h.sleep===null?[]:[h.sleep]));
+ const previousSleep=avg(priorSleep.flatMap(h=>h.sleep===null?[]:[h.sleep]));
  const feedback=s.audit.filter(a=>a.feedback&&days.includes(dateKey(new Date(a.at),s.profile.timezone)));
  const sessionTarget=s.program?planned.length:s.profile.days;
  const count=s.program?planned.filter(d=>completedDays.has(d)).length:completedDays.size;
